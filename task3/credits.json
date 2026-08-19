@@ -1,0 +1,107 @@
+{
+  "_editing_note": "REPLACE THE PLACEHOLDER NAMES AND TP NUMBERS BELOW WITH THE REAL GROUP MEMBERS BEFORE SUBMISSION. Roles must be the 14 CRediT taxonomy terms only (see 'taxonomy' below). The GUI reads this file every time the credits window is opened, so it can be edited while the server is running.",
+  "project": {
+    "title": "Brain Tumour Segmentation on MRI - Semi-Automated and Deep Learning Methods",
+    "module": "EE001-3.5-3-MVI Machine Vision",
+    "dataset": "BRISC 2025 (brain tumour MRI, segmentation task)",
+    "institution": "Asia Pacific University of Technology and Innovation",
+    "statement_standard": "CRediT - Contributor Roles Taxonomy (Brand et al., 2015; NISO CRediT standard, 2022)",
+    "statement_url": "https://credit.niso.org/"
+  },
+  "taxonomy": [
+    "Conceptualization",
+    "Data curation",
+    "Formal analysis",
+    "Funding acquisition",
+    "Investigation",
+    "Methodology",
+    "Project administration",
+    "Resources",
+    "Software",
+    "Supervision",
+    "Validation",
+    "Visualization",
+    "Writing - original draft",
+    "Writing - review & editing"
+  ],
+  "members": [
+    {
+      "name": "Student 1 (PLACEHOLDER - replace with real name)",
+      "student_id": "TP0000001",
+      "chapter": "Chapter 1",
+      "roles": [
+        "Conceptualization",
+        "Methodology",
+        "Software",
+        "Formal analysis",
+        "Validation",
+        "Visualization",
+        "Writing - original draft",
+        "Writing - review & editing"
+      ],
+      "contribution": "Designed and implemented the Task 1 semi-automated Random Forest segmenter (41 per-pixel features, box-conditioned geometry channels) and the Task 2 MHA-ResUNet with the dual attention gate on the skip connections. Ran the PSO baseline search, the four-round structured pruning study and the full 50-image and 200-image evaluations. Built the Task 3 GUI back end and the dual-runtime model bridge. Wrote Chapter 1 and Section 5.1-5.2.",
+      "artefacts": [
+        "task1/",
+        "task2/",
+        "task3/app.py",
+        "task3/backends.py"
+      ]
+    },
+    {
+      "name": "Student 2 (PLACEHOLDER - replace with real name)",
+      "student_id": "TP0000002",
+      "chapter": "Chapter 2",
+      "roles": [
+        "Software",
+        "Data curation",
+        "Investigation",
+        "Visualization",
+        "Writing - original draft"
+      ],
+      "contribution": "PLACEHOLDER - replace with this member's real contribution. Suggested split: Chapter 2 individual Task 1 and Task 2, plus the GUI visualisation layer (overlay, difference and probability views) and the dataset browser.",
+      "artefacts": [
+        "task3/render.py"
+      ]
+    },
+    {
+      "name": "Student 3 (PLACEHOLDER - replace with real name)",
+      "student_id": "TP0000003",
+      "chapter": "Chapter 3",
+      "roles": [
+        "Software",
+        "Investigation",
+        "Resources",
+        "Validation",
+        "Writing - original draft"
+      ],
+      "contribution": "PLACEHOLDER - replace with this member's real contribution. Suggested split: Chapter 3 individual Task 1 and Task 2, plus the multilingual layer (English, Bahasa Melayu, Arabic with right-to-left mirroring) and the accessibility settings.",
+      "artefacts": [
+        "task3/static/js/i18n.js"
+      ]
+    },
+    {
+      "name": "Student 4 (PLACEHOLDER - replace with real name)",
+      "student_id": "TP0000004",
+      "chapter": "Chapter 4",
+      "roles": [
+        "Software",
+        "Project administration",
+        "Validation",
+        "Writing - original draft",
+        "Writing - review & editing"
+      ],
+      "contribution": "PLACEHOLDER - replace with this member's real contribution. Suggested split: Chapter 4 individual Task 1 and Task 2, plus the audio cue and screen-reader layer, the guided walkthrough and the session log, and coordination of the weekly meeting records.",
+      "artefacts": [
+        "task3/static/js/audio.js",
+        "task3/docs/COOPERATION.md"
+      ]
+    }
+  ],
+  "supervision": {
+    "name": "Dr Reuben George",
+    "roles": [
+      "Supervision"
+    ],
+    "contribution": "Module supervision and assessment."
+  }
+}
