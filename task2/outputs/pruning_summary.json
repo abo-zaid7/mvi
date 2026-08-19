@@ -1,0 +1,92 @@
+{
+  "ratio": 0.4,
+  "old_filters": [
+    32,
+    64,
+    128,
+    256,
+    512
+  ],
+  "new_filters": [
+    16,
+    40,
+    76,
+    152,
+    308
+  ],
+  "before": {
+    "flops": 14926557023,
+    "gflops": 14.927,
+    "trainable_params": 8838017,
+    "total_params": 8846849,
+    "size_mb": 34.06,
+    "latency_s": 0.0474
+  },
+  "after": {
+    "flops": 5074629812,
+    "gflops": 5.075,
+    "trainable_params": 3283538,
+    "total_params": 3288794,
+    "size_mb": 12.86,
+    "latency_s": 0.0461
+  },
+  "rounds": 4,
+  "per_round_ratio": 0.1199,
+  "journey": [
+    {
+      "round": 1,
+      "filters": [
+        28,
+        56,
+        112,
+        224,
+        452
+      ],
+      "dice_after_transfer": 0.46826183795928955,
+      "dice_after_bn_recalibration": 0.8065175414085388,
+      "dice_after_recovery": 0.8675662279129028
+    },
+    {
+      "round": 2,
+      "filters": [
+        24,
+        48,
+        100,
+        196,
+        396
+      ],
+      "dice_after_transfer": 0.4972228705883026,
+      "dice_after_bn_recalibration": 0.8155274391174316,
+      "dice_after_recovery": 0.8657473921775818
+    },
+    {
+      "round": 3,
+      "filters": [
+        20,
+        44,
+        88,
+        172,
+        348
+      ],
+      "dice_after_transfer": 0.23690620064735413,
+      "dice_after_bn_recalibration": 0.7628012299537659,
+      "dice_after_recovery": 0.8650916218757629
+    },
+    {
+      "round": 4,
+      "filters": [
+        16,
+        40,
+        76,
+        152,
+        308
+      ],
+      "dice_after_transfer": 0.47335660457611084,
+      "dice_after_bn_recalibration": 0.7301023006439209,
+      "dice_after_recovery": 0.862834632396698
+    }
+  ],
+  "recalibration_batches": 100,
+  "val_dice_after_finetune": 0.8711604475975037,
+  "finetune_minutes": 33.2
+}

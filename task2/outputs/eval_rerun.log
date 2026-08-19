@@ -1,0 +1,68 @@
+=== pruning done, re-running evaluation ===
+loading 200 test scans ...
+
+evaluating proposed_pruned ...
+2026-08-02 02:59:59.057158: I metal_plugin/src/device/metal_device.cc:1154] Metal device set to: Apple M1 Max
+2026-08-02 02:59:59.057226: I metal_plugin/src/device/metal_device.cc:296] systemMemory: 32.00 GB
+2026-08-02 02:59:59.057239: I metal_plugin/src/device/metal_device.cc:313] maxCacheSize: 10.67 GB
+2026-08-02 02:59:59.057276: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:303] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
+2026-08-02 02:59:59.057297: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:269] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
+2026-08-02 03:00:00.411507: I tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.cc:114] Plugin optimizer for device_type GPU is enabled.
+2026-08-02 03:00:06.879028: I tensorflow/core/grappler/devices.cc:75] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 0 (Note: TensorFlow was not compiled with CUDA or ROCm support)
+2026-08-02 03:00:06.879136: I tensorflow/core/grappler/clusters/single_machine.cc:357] Starting new session
+2026-08-02 03:00:06.879345: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:303] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
+2026-08-02 03:00:06.879368: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:269] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
+WARNING:tensorflow:From /Users/abozaid/Projects/my-first-project/tf-env/lib/python3.11/site-packages/tensorflow/python/ops/nn_ops.py:5251: tensor_shape_from_node_def_name (from tensorflow.python.framework.graph_util_impl) is deprecated and will be removed in a future version.
+Instructions for updating:
+This API was designed for TensorFlow v1. See https://www.tensorflow.org/guide/migrate for instructions on how to migrate your code to TensorFlow v2.
+2026-08-02 03:00:07.428712: I tensorflow/core/grappler/devices.cc:75] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 0 (Note: TensorFlow was not compiled with CUDA or ROCm support)
+2026-08-02 03:00:07.428809: I tensorflow/core/grappler/clusters/single_machine.cc:357] Starting new session
+2026-08-02 03:00:07.428945: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:303] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
+2026-08-02 03:00:07.428961: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:269] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
+proposed_pruned           5.075 GFLOPs | 3,283,538 params |  12.86 MB |   41.2 ms
+
+evaluating proposed ...
+2026-08-02 03:00:10.841220: I tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.cc:114] Plugin optimizer for device_type GPU is enabled.
+2026-08-02 03:00:17.247189: I tensorflow/core/grappler/devices.cc:75] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 0 (Note: TensorFlow was not compiled with CUDA or ROCm support)
+2026-08-02 03:00:17.247296: I tensorflow/core/grappler/clusters/single_machine.cc:357] Starting new session
+2026-08-02 03:00:17.247450: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:303] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
+2026-08-02 03:00:17.247473: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:269] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
+2026-08-02 03:00:17.934456: I tensorflow/core/grappler/devices.cc:75] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 0 (Note: TensorFlow was not compiled with CUDA or ROCm support)
+2026-08-02 03:00:17.934554: I tensorflow/core/grappler/clusters/single_machine.cc:357] Starting new session
+2026-08-02 03:00:17.934694: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:303] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
+2026-08-02 03:00:17.934711: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:269] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
+proposed                 14.927 GFLOPs | 8,838,017 params |  34.06 MB |   46.8 ms
+
+evaluating unet_pso ...
+2026-08-02 03:00:20.871543: I tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.cc:114] Plugin optimizer for device_type GPU is enabled.
+2026-08-02 03:00:27.077146: I tensorflow/core/grappler/devices.cc:75] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 0 (Note: TensorFlow was not compiled with CUDA or ROCm support)
+2026-08-02 03:00:27.077283: I tensorflow/core/grappler/clusters/single_machine.cc:357] Starting new session
+2026-08-02 03:00:27.077426: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:303] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
+2026-08-02 03:00:27.077446: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:269] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
+2026-08-02 03:00:27.344268: I tensorflow/core/grappler/devices.cc:75] Number of eligible GPUs (core count >= 8, compute capability >= 0.0): 0 (Note: TensorFlow was not compiled with CUDA or ROCm support)
+2026-08-02 03:00:27.344365: I tensorflow/core/grappler/clusters/single_machine.cc:357] Starting new session
+2026-08-02 03:00:27.344514: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:303] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
+2026-08-02 03:00:27.344531: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:269] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
+unet_pso                  7.623 GFLOPs | 4,367,641 params |  16.84 MB |   53.4 ms
+
+=========== results over 200 test images ===========
+                   dice  dice_median     iou  accuracy     hd95  sensitivity  precision  gflops  params_M  size_mb  latency_ms
+model                                                                                                                         
+proposed_pruned  0.8699       0.9286  0.7949    0.9962  14.7742       0.8952     0.8714   5.075      3.28    12.86        41.2
+proposed         0.8692       0.9312  0.7934    0.9960  14.4889       0.8870     0.8717  14.927      8.84    34.06        46.8
+unet_pso         0.8352       0.9172  0.7549    0.9952  25.9813       0.8843     0.8203   7.623      4.37    16.84        53.4
+
+proposed_pruned: Dice >= 0.85 on 151/200 images, >= 0.70 on 184/200
+
+proposed: Dice >= 0.85 on 153/200 images, >= 0.70 on 178/200
+
+unet_pso: Dice >= 0.85 on 137/200 images, >= 0.70 on 175/200
+
+proposed_pruned, Dice by tumour type:
+             count    mean
+tumour_type               
+glioma          58  0.7860
+meningioma      78  0.9350
+pituitary       64  0.8666
+
+results written to /Users/abozaid/Projects/my-first-project/task2/outputs

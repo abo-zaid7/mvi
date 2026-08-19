@@ -1,0 +1,236 @@
+{
+  "best_params": {
+    "base_filters": 24,
+    "dropout": 0.21491861750807217,
+    "activation": "elu",
+    "learning_rate": 0.001850857111320906
+  },
+  "best_score": 0.6398199796676636,
+  "search_minutes": 30.4,
+  "evaluations": 24,
+  "settings": {
+    "particles": 6,
+    "iterations": 4,
+    "epochs_per_eval": 6,
+    "subset": 1000,
+    "image_size": 128
+  },
+  "history": [
+    {
+      "iteration": 0,
+      "particle": 0,
+      "score": 0.5962958931922913,
+      "base_filters": 40,
+      "dropout": 0.17555137590082093,
+      "activation": "elu",
+      "learning_rate": 0.0015304084796521247
+    },
+    {
+      "iteration": 0,
+      "particle": 1,
+      "score": 0.5149797201156616,
+      "base_filters": 12,
+      "dropout": 0.3902489406547024,
+      "activation": "elu",
+      "learning_rate": 0.0021652082647024037
+    },
+    {
+      "iteration": 0,
+      "particle": 2,
+      "score": 0.4609077572822571,
+      "base_filters": 12,
+      "dropout": 0.18015437515822685,
+      "activation": "relu",
+      "learning_rate": 0.0037544464741617266
+    },
+    {
+      "iteration": 0,
+      "particle": 3,
+      "score": 0.19633476436138153,
+      "base_filters": 32,
+      "dropout": 0.329104645308332,
+      "activation": "relu",
+      "learning_rate": 0.0002432605991851313
+    },
+    {
+      "iteration": 0,
+      "particle": 4,
+      "score": 0.559851884841919,
+      "base_filters": 32,
+      "dropout": 0.02552690244167013,
+      "activation": "elu",
+      "learning_rate": 0.001183528899185443
+    },
+    {
+      "iteration": 0,
+      "particle": 5,
+      "score": 0.5547810792922974,
+      "base_filters": 40,
+      "dropout": 0.14181038725194736,
+      "activation": "elu",
+      "learning_rate": 0.0032914403991318977
+    },
+    {
+      "iteration": 1,
+      "particle": 0,
+      "score": 0.5741442441940308,
+      "base_filters": 44,
+      "dropout": 0.1413509111802413,
+      "activation": "elu",
+      "learning_rate": 0.0009285162789958191
+    },
+    {
+      "iteration": 1,
+      "particle": 1,
+      "score": 0.586377739906311,
+      "base_filters": 20,
+      "dropout": 0.2702489406547024,
+      "activation": "elu",
+      "learning_rate": 0.002402748575028807
+    },
+    {
+      "iteration": 1,
+      "particle": 2,
+      "score": 0.6127690672874451,
+      "base_filters": 24,
+      "dropout": 0.1628399646019899,
+      "activation": "elu",
+      "learning_rate": 0.0021340773853462
+    },
+    {
+      "iteration": 1,
+      "particle": 3,
+      "score": 0.43802550435066223,
+      "base_filters": 28,
+      "dropout": 0.30564288190775835,
+      "activation": "elu",
+      "learning_rate": 0.0007866159956460719
+    },
+    {
+      "iteration": 1,
+      "particle": 4,
+      "score": 0.6090893745422363,
+      "base_filters": 32,
+      "dropout": 0.14552690244167013,
+      "activation": "elu",
+      "learning_rate": 0.0012604142257140354
+    },
+    {
+      "iteration": 1,
+      "particle": 5,
+      "score": 0.5845261216163635,
+      "base_filters": 44,
+      "dropout": 0.19522804458864113,
+      "activation": "elu",
+      "learning_rate": 0.00126550374544473
+    },
+    {
+      "iteration": 2,
+      "particle": 0,
+      "score": 0.5185118317604065,
+      "base_filters": 32,
+      "dropout": 0.14285397034096348,
+      "activation": "elu",
+      "learning_rate": 0.0022616350820427104
+    },
+    {
+      "iteration": 2,
+      "particle": 1,
+      "score": 0.625421941280365,
+      "base_filters": 24,
+      "dropout": 0.1502489406547024,
+      "activation": "elu",
+      "learning_rate": 0.00251878030735046
+    },
+    {
+      "iteration": 2,
+      "particle": 2,
+      "score": 0.5670360922813416,
+      "base_filters": 32,
+      "dropout": 0.15071987721262406,
+      "activation": "elu",
+      "learning_rate": 0.0014370607778476346
+    },
+    {
+      "iteration": 2,
+      "particle": 3,
+      "score": 0.6398199796676636,
+      "base_filters": 24,
+      "dropout": 0.21491861750807217,
+      "activation": "elu",
+      "learning_rate": 0.001850857111320906
+    },
+    {
+      "iteration": 2,
+      "particle": 4,
+      "score": 0.4437868893146515,
+      "base_filters": 24,
+      "dropout": 0.24205212651756258,
+      "activation": "elu",
+      "learning_rate": 0.0014061366709699004
+    },
+    {
+      "iteration": 2,
+      "particle": 5,
+      "score": 0.5495928525924683,
+      "base_filters": 32,
+      "dropout": 0.2087808186495816,
+      "activation": "elu",
+      "learning_rate": 0.0010146245336558131
+    },
+    {
+      "iteration": 3,
+      "particle": 0,
+      "score": 0.6163952350616455,
+      "base_filters": 24,
+      "dropout": 0.260005767086739,
+      "activation": "elu",
+      "learning_rate": 0.0026628176455673817
+    },
+    {
+      "iteration": 3,
+      "particle": 1,
+      "score": 0.5859593749046326,
+      "base_filters": 28,
+      "dropout": 0.15704939344831398,
+      "activation": "elu",
+      "learning_rate": 0.002549839992607304
+    },
+    {
+      "iteration": 3,
+      "particle": 2,
+      "score": 0.5486457347869873,
+      "base_filters": 32,
+      "dropout": 0.247872157423463,
+      "activation": "elu",
+      "learning_rate": 0.0021569341429115265
+    },
+    {
+      "iteration": 3,
+      "particle": 3,
+      "score": 0.6221826076507568,
+      "base_filters": 20,
+      "dropout": 0.15141163242829186,
+      "activation": "elu",
+      "learning_rate": 0.003368991962433996
+    },
+    {
+      "iteration": 3,
+      "particle": 4,
+      "score": 0.48870405554771423,
+      "base_filters": 20,
+      "dropout": 0.15006262269047843,
+      "activation": "elu",
+      "learning_rate": 0.0015686725428354351
+    },
+    {
+      "iteration": 3,
+      "particle": 5,
+      "score": 0.5331950783729553,
+      "base_filters": 24,
+      "dropout": 0.21314361641375176,
+      "activation": "elu",
+      "learning_rate": 0.0014120057989965053
+    }
+  ]
+}
