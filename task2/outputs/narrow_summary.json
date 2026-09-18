@@ -1,0 +1,20 @@
+{
+  "filters": [
+    8,
+    32,
+    60,
+    116,
+    232
+  ],
+  "trainable_params": 1963474,
+  "val_dice": 0.8619,
+  "train_minutes": 23.6,
+  "complexity": {
+    "flops": 2794368808,
+    "gflops": 2.794,
+    "trainable_params": 1963474,
+    "total_params": 1967458,
+    "size_mb": 7.82,
+    "latency_s": 0.0361
+  }
+}

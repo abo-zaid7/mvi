@@ -21,25 +21,29 @@ The script checks that `tf-env` exists and refuses to start with a readable mess
 
 ## 5.1.2 Loading the models
 
-The list holds six models, one Task 1 and one Task 2 for each student, named after their author rather than after their file so the marker can see whose work is whose.
+The list holds eight models, one Task 1 and one Task 2 for each of the four of us, named after their author rather than after their file so the marker can see whose work is whose.
 
-Table 1 The six models and where their files live
+Table 1 The eight models and where their files live
 
 | Group | Model | Dataset | File |
 |---|---|---|---|
 | Task 1 | SALMAN (ME) | BRISC 2025 brain MRI | `task1/outputs/rf_segmenter.joblib` |
 | Task 1 | AFNAN | BUSI breast ultrasound | `task3/afnan_task1.py` (a pipeline, no weights) |
 | Task 1 | AMAN | FIVES retinal fundus | `amman/Task1_GUI_share 2/results/` |
-| Task 2 | SALMAN (ME) | BRISC 2025 brain MRI | `task2/outputs/models/mha_resunet_pruned.h5` |
+| Task 2 | SALMAN (ME) | BRISC 2025 brain MRI | `task2/outputs/models/mha_resunet_narrow.h5` |
 | Task 2 | AFNAN | BUSI breast ultrasound | `afnan/innovation_seed42_pruned.keras` |
 | Task 2 | AMAN | FIVES retinal fundus | `amman/Task2_GUI_share 2/results/` |
+| Task 1 | ADIT | Figshare brain MRI | `task3/adit_task1.py` (a pipeline, no weights) |
+| Task 2 | ADIT | Figshare brain MRI | `adit/gui_share/results/` |
 
-Three different things happen behind the one **Load** button, and the interface hides that difference from the user rather than from the reader of this report:
+Four different things happen behind the one **Load** button, and the interface hides that difference from the user rather than from the reader of this report:
 
 - Salman's Task 1 forest is loaded by a helper process running on `mvi-env`, which the server starts by itself the first time it is needed and then talks to over a pipe. Nothing has to be activated by hand.
-- Salman's and Afnan's Task 2 networks are loaded into the server process and stay warm between predictions.
+- Salman's and Afnan's Task 2 networks are loaded into the server process and stay warm between predictions. The one the list offers under Salman's name is the network that meets the module's two million parameter limit, 1,963,474 parameters at 7.82 MB, rather than the wider 8.84 M model it was cut down from - the interface offers the model that would actually be submitted, and the others are still reachable by path through "Load another model file".
 - Afnan's Task 1 is her notebook pipeline ported into a module, so there is no file to load at all; it reports its stages where a spec sheet would normally report weights, and it says 0 parameters, which for a classical method is the honest answer rather than a missing one.
+- Adit's Task 1 is her notebook pipeline ported into a module as well, and it is the one that needed the least persuading: her method wants a single point inside the lesion, her own notebook says in as many words that in a live GUI the seed would come from a click and that swapping the seed source is the only change needed, so the centre of the box the user drags is taken as that point. Asking her method for a click and every other Task 1 method for a box would be two interactions where one will do.
 - Aman's two are read back from recorded results rather than run. His Task 2 checkpoint is a Keras 3 file and this GUI runs TensorFlow 2.13, which cannot deserialise it, and his hand-over notes ask for the recorded route in any case; both of his folders carry every test image, its ground truth, its prediction and the per-image metrics.
+- Adit's Task 2 is recorded for a different reason, and the difference is worth stating because it is a hand-over problem rather than a technical one: she trained in a hosted session and the weights did not come back with the results, only the figures did. What she exported is sixteen report cases, and those have been rebuilt into the same layout Aman's folders use, so the interface treats them identically. Only those sixteen are offered in her Task 2 picker; the other 3,048 scans in her dataset have no prediction to show, and listing them would let a user pick one and be told so.
 
 What "loaded" looks like on screen, in order: the card gains an accent border and its button changes from **Load** to **Ready**, a three note chime plays, the first item in the checklist ticks itself off, a line appears in the session log with the time, a toast says which model was loaded, and the specification sheet appears under the list. For the forest that sheet is the number of trees, the features per pixel, the minimum leaf size, the working patch and the box padding; for a network it is the architecture, the input size, the channel widths, the tunable parameters, the GFLOPs, the file size and the measured latency. Those FLOPs and latency figures are the ones Task 2 measured and wrote to `complexity.json`, they are reused rather than re-profiled because profiling costs several seconds per model and would make the interface look like it had frozen.
 
@@ -67,7 +71,7 @@ The flow from click to result is short by design. Press **Segment this scan**, o
 
 Four things then update at once: the outlines are drawn over the scan, the metrics panel fills in with the Dice score set large above the rest, a chime plays, and a timestamped line is added to the session log. Running a second model on the same scan adds a row to the "same scan, each model" comparison table instead of overwriting the result, which is the quickest way to show two models disagreeing on one image.
 
-The measured round trips are honest and small: 46.5 ms for Salman's pruned network, 75.9 ms for the Task 1 forest including the worker round trip, about 170 ms for Afnan's network, about 560 ms for Afnan's classical pipeline, which is the slowest of the six because it generates and scores proposals rather than doing one forward pass, and effectively instant for Aman's two because a recorded mask is read from disk.
+The measured round trips are honest and small: 42.5 ms for Salman's narrow network, 75.9 ms for the Task 1 forest including the worker round trip, about 170 ms for Afnan's network, about 560 ms for Afnan's classical pipeline, which is the slowest of the six because it generates and scores proposals rather than doing one forward pass, about 500 ms for Adit's seeded pipeline, and effectively instant for the four recorded entries because a recorded mask is read from disk.
 
 Saving the result is three separate things, for three separate purposes. **Export PNG** downloads a labelled strip of the scan, the ground truth, the prediction and the difference map in one image, named after the scan and the model, which is what goes into a report or a slide. **Save** on the session log downloads the whole session as CSV, every model loaded and every prediction run with its scores, which is what goes into an appendix. And the page prints, with the controls and the log hidden by a print stylesheet, so a single case can be printed as a record.
 
@@ -107,26 +111,30 @@ Table 3 The regions marked in Figure 2
 | D | Overlay controls | Fill opacity, outline thickness, show or hide the box, and Export PNG. |
 | E | Action bar | The Segment button with its keyboard shortcut, the box controls when the loaded model needs one, and a hint saying what is missing before it can run. |
 | F | Checklist | The four steps - load a model, choose a scan, mark the lesion, run - which tick themselves off as the work is done, and grey out when they do not apply. |
-| G | Model list | The six models grouped by task and named by author, each with its dataset, its file and its size. |
+| G | Model list | The eight models grouped by task and named by author, each with its dataset, its file and its size. |
 | H | Metrics | The Dice score set large with a bar and the 0.85 threshold marked, then the rest of the numbers, a plain-language verdict, and the session log below it. |
 
 ## 5.2.2 Image display panels
 
 The same result is offered six ways, and each one answers a question the others cannot.
 
-[FIG] task3/docs/figures/fig_views.png | Figure 3 The six views, SALMAN (ME), Task 2 on a BRISC meningioma, Dice 0.954
+[FIG] task3/docs/figures/fig_views.png | Figure 3 The six views, SALMAN (ME), Task 2 on a BRISC meningioma, Dice 0.950
 
-The same six panels are drawn for every model in the list, whoever wrote it and whatever it was trained on, and the two figures below are Afnan's and Aman's models shown the same way. They are worth putting side by side with mine because the three of them make the panels behave differently, and that is a property of the images rather than of the interface.
+The same six panels are drawn for every model in the list, whoever wrote it and whatever it was trained on, and the three figures below are Afnan's, Aman's and Adit's models shown the same way. They are worth putting side by side with mine because the four of them make the panels behave differently, and that is a property of the images rather than of the interface.
 
 [FIG] task3/docs/figures/fig_views_afnan.png | Figure 4 The six views, AFNAN, Task 2 on a benign BUSI lesion, Dice 0.959
 
 [FIG] task3/docs/figures/fig_views_amman.png | Figure 5 The six views, AMAN, Task 2 on FIVES report case 13_A, Dice 0.942. The confidence panel is the plain scan because a recorded result has no probability map behind it
 
+[FIG] task3/docs/figures/fig_views_adit.png | Figure 6 The six views, ADIT, Task 1 on a Figshare slice, Dice 0.892. Her method is seeded rather than automatic, so the box drawn on the scan is the interaction and its centre is the seed
+
 On Afnan's ultrasound lesion the panels read almost exactly as they do on my MRI, which is the point: one compact region, so the boundaries view is the one to look at, the prediction and the ground truth are close enough that the difference view is mostly agreement with a thin rim of over-segmentation down one side, and the confidence panel shows the network was sure about the whole lesion rather than only its centre. The scan-only panel is the one that earns its place here more than it does on a brain MRI, because the lesion is obvious to the eye on B-mode and it is worth seeing the image without an overlay leading it.
 
 Aman's retinal image is where the same six panels stop behaving the same way. The target is not one compact region but a vessel tree spread across the whole image, and the boundaries view suffers for it — outlining hundreds of thin branches in two colours produces a picture where the red prediction almost completely covers the green ground truth, so the two look identical whether they agree or not. The difference view is the one that works: yellow where the two agree, green where a vessel was missed, and magenta where one was found that is not in the ground truth, and at a glance it shows the network following the fine peripheral branches and dropping a few of the thinnest. The confidence panel is deliberately blank, that model's results were recorded rather than run here, and a finished mask carries no probabilities, which the caption under the view says in as many words rather than leaving an unexplained grey circle.
 
-So the honest summary of these three figures is that the six views are not equally useful on all three datasets, and the interface does not pretend otherwise. Two of them — difference and scan only — carry most of the weight on a vessel tree, and boundaries carries it on a compact lesion.
+Adit's Figshare slice is a brain MRI like mine and the panels behave accordingly, with one difference that is hers rather than the dataset's: her method is semi-automated, so the box is on the scan in the boundaries view and the interaction is visible in the picture. It is the only one of the four figures where the user's contribution can be seen, which makes it the clearest illustration in this chapter of what "semi-automated" actually means.
+
+So the honest summary of these four figures is that the six views are not equally useful on all four datasets, and the interface does not pretend otherwise. Two of them — difference and scan only — carry most of the weight on a vessel tree, and boundaries carries it on a compact lesion.
 
 Table 4 What each view shows and why it is there
 
@@ -162,13 +170,13 @@ For Aman's two entries the numbers shown are the ones recorded when his results 
 
 ## 5.2.4 The same interface on the other two datasets
 
-Everything described so far was shown on a brain MRI, which is the dataset my own two models use, and the more interesting question for a group GUI is whether the same window is still the right window when somebody else's model is loaded on somebody else's images. The four figures below are Afnan's two models and Aman's two models, running in the same interface with nothing changed but the choice in the model list.
+Everything described so far was shown on a brain MRI, which is the dataset my own two models use, and the more interesting question for a group GUI is whether the same window is still the right window when somebody else's model is loaded on somebody else's images. The six figures below are the other three students' models, running in the same interface with nothing changed but the choice in the model list.
 
 Afnan's two are both on BUSI breast ultrasound, and they are deliberately shown on the same scan so the two methods can be compared rather than two different images being compared.
 
-[FIG] task3/docs/figures/fig_afnan_task1.jpg | Figure 6 AFNAN, Task 1. The classical pipeline on a benign BUSI lesion, Dice 0.974. The box controls are gone because this method finds the lesion itself
+[FIG] task3/docs/figures/fig_afnan_task1.jpg | Figure 7 AFNAN, Task 1. The classical pipeline on a benign BUSI lesion, Dice 0.974. The box controls are gone because this method finds the lesion itself
 
-[FIG] task3/docs/figures/fig_afnan_task2.jpg | Figure 7 AFNAN, Task 2. Her pruned network on the same scan, Dice 0.959, HD95 8.00 px against the classical pipeline's 6.40 px
+[FIG] task3/docs/figures/fig_afnan_task2.jpg | Figure 8 AFNAN, Task 2. Her pruned network on the same scan, Dice 0.959, HD95 8.00 px against the classical pipeline's 6.40 px
 
 Two things in those two figures are worth pointing out. The first is that the interface has quietly reconfigured itself: the scan picker has switched to the BUSI list with its own classes, the checklist has greyed out "mark the lesion" because neither of these two methods takes a box, and the action bar has dropped the box controls rather than showing them and ignoring them. Loading a model is the only thing the user did.
 
@@ -176,15 +184,25 @@ The second is the result itself, and it needs stating carefully. On this particu
 
 Aman's two are on FIVES retinal fundus photographs, which is a different problem again — the target is not one compact lesion but the whole vessel tree, thin branching structures spread across the entire image.
 
-[FIG] task3/docs/figures/fig_amman_task1.jpg | Figure 8 AMAN, Task 1. The classical vessel segmentation on report case 13_A, Dice 0.894 from the recorded results
+[FIG] task3/docs/figures/fig_amman_task1.jpg | Figure 9 AMAN, Task 1. The classical vessel segmentation on report case 13_A, Dice 0.894 from the recorded results
 
-[FIG] task3/docs/figures/fig_amman_task2.jpg | Figure 9 AMAN, Task 2. His pruned attention U-Net on the same image, Dice 0.942 and HD95 1.00 px against the classical method's 5.39 px
+[FIG] task3/docs/figures/fig_amman_task2.jpg | Figure 10 AMAN, Task 2. His pruned attention U-Net on the same image, Dice 0.942 and HD95 1.00 px against the classical method's 5.39 px
 
 Here the deep model is clearly the better of the two, 0.942 against 0.894, and the boundary error falls from 5.39 px to 1.00 px, which on a vessel tree means the network is following the thin peripheral branches that the classical method breaks up or misses. That is visible in the figures without reading the numbers, which is the point of showing the picture at all.
 
-These two also show the one place the interface has to be honest about what it is doing. Aman's models are not run here, they are recorded results read back from the files he handed over, and the card in the model list says "recorded results" for exactly that reason. The metrics shown are the ones measured when those results were produced rather than a rescore, the latency field is blank because nothing was timed, and the confidence view says plainly that a finished mask has no probability map behind it. An interface that displayed a recorded mask as though it had just been computed would be showing the user something that is not true, and on a marked assignment that is worth more than the convenience of pretending all six models work the same way.
+These two also show the one place the interface has to be honest about what it is doing. Aman's models are not run here, they are recorded results read back from the files he handed over, and the card in the model list says "recorded results" for exactly that reason. The metrics shown are the ones measured when those results were produced rather than a rescore, the latency field is blank because nothing was timed, and the confidence view says plainly that a finished mask has no probability map behind it. An interface that displayed a recorded mask as though it had just been computed would be showing the user something that is not true, and on a marked assignment that is worth more than the convenience of pretending all eight models work the same way.
 
-Across the three datasets nothing about the layout had to change. The same six views, the same six metrics, the same overlay controls and the same export all work on an MRI slice, an ultrasound sweep and a fundus photograph, because everything is reduced to a scan, a ground truth mask and a predicted mask at a common size before it reaches the display. The only visible difference is which view earns its place: on a compact tumour the boundaries view is the one to look at, and on a vessel tree the difference view is far more useful, because red and green outlines around hundreds of thin branches overlap into one colour whereas agreement, missed and extra do not.
+Adit's two are on Figshare brain MRI, which is the same organ as mine on a different dataset, and between them they make the two points this section is really about.
+
+[FIG] task3/docs/figures/fig_adit_task1.jpg | Figure 11 ADIT, Task 1. Her seeded pipeline on Figshare slice 1, Dice 0.892. The dashed box is the interaction and its centre is the seed her method asks for
+
+[FIG] task3/docs/figures/fig_adit_task2.jpg | Figure 12 ADIT, Task 2. Her EfficientNet-B4 encoder U-Net on report case 627, Dice 0.976 from the recorded results
+
+The first point is that a method with a different interaction still fits. Hers is the only one of the eight that wants a point rather than a box or nothing at all, and rather than adding a second interaction the interface hands her the centre of the box it already has, which is exactly the swap her notebook says is needed. The checklist ticks "mark the lesion" for her the same way it does for mine, and a user moving between the two would not notice that one method wants a rectangle and the other only a point inside it.
+
+The second is a limit worth being honest about. Her Task 2 offers sixteen scans where every other model offers between fifty and two hundred, because sixteen is what she exported predictions for. The interface does not disguise that: the card says recorded results, the picker lists what exists, and picking anything else is impossible rather than merely disappointing. A group GUI is only as complete as what its members hand over, and the right response to a partial hand-over is to show exactly what arrived rather than to pad it.
+
+Across the four datasets nothing about the layout had to change. The same six views, the same six metrics, the same overlay controls and the same export all work on an MRI slice, an ultrasound sweep and a fundus photograph, because everything is reduced to a scan, a ground truth mask and a predicted mask at a common size before it reaches the display. The only visible difference is which view earns its place: on a compact tumour the boundaries view is the one to look at, and on a vessel tree the difference view is far more useful, because red and green outlines around hundreds of thin branches overlap into one colour whereas agreement, missed and extra do not.
 
 ## 5.2.5 Feature summary
 
@@ -192,10 +210,10 @@ Table 6 Every feature in the interface
 
 | Feature | What it does |
 |---|---|
-| Six models, one list | One Task 1 and one Task 2 model per student, grouped by task and named by author. |
-| Three datasets | BRISC brain MRI, BUSI breast ultrasound and FIVES retinal fundus; loading a model switches the scan picker to match it. |
-| Live prediction | Four of the six models are loaded and run in the interface; the other two are served from recorded results and labelled as such. |
-| Semi-automated box | For Task 1 the lesion box is dragged directly on the scan, or simulated with the same 2-20% slack the evaluation used. |
+| Eight models, one list | One Task 1 and one Task 2 model per student, grouped by task and named by author. |
+| Four datasets | BRISC brain MRI, BUSI breast ultrasound, FIVES retinal fundus and Figshare brain MRI; loading a model switches the scan picker to match it. |
+| Live prediction | Five of the eight models are loaded and run in the interface; the other three are served from recorded results and labelled as such. |
+| Semi-automated interaction | The lesion box is dragged directly on the scan, or simulated with the same 2-20% slack the evaluation used; for the method that wants a single seed point instead, the centre of that box is the point. |
 | Six views | Boundaries, ground truth, prediction, difference, confidence and scan only. |
 | Overlay controls | Fill opacity 0-100%, outline thickness 1-6 px, box on or off. |
 | Metrics panel | Dice, IoU, HD95, pixel accuracy, sensitivity and precision, with a threshold bar and a plain-language verdict. |
@@ -257,7 +275,7 @@ Malaysia is a multilingual country and a clinical tool that exists only in Engli
 
 Arabic was added for a structural reason rather than a demographic one. A second left-to-right language only exercises the string table; a right-to-left language exercises the layout, and an interface that swaps its words but keeps its structure the wrong way round is harder to use for a right-to-left reader because reading order, scanning order and the expected position of a "next" control all reverse together. Adding Arabic forced the interface to be built so that it genuinely mirrors, which is a property that cannot be retrofitted by translation alone.
 
-[FIG] task3/docs/figures/fig_arabic.jpg | Figure 10 The interface in Arabic. The whole layout mirrors, not only the words - the panels swap sides, the sliders fill from the right, and the numbers stay left to right
+[FIG] task3/docs/figures/fig_arabic.jpg | Figure 13 The interface in Arabic. The whole layout mirrors, not only the words - the panels swap sides, the sliders fill from the right, and the numbers stay left to right
 
 The mirroring is implemented once rather than as a second stylesheet. Every side in the stylesheet is named logically — `margin-inline-start` rather than `margin-left`, `inset-inline-start` rather than `left` — so selecting Arabic sets one attribute on the document and the whole interface reverses: the columns swap, the sliders fill from the other end, the next-scan arrow turns round, and the threshold mark on the Dice bar moves with them. Numbers, file names and model identifiers are held left to right inside the right-to-left text, which is correct, Arabic writes numerals in that direction even in the middle of a right-to-left sentence.
 
@@ -287,7 +305,7 @@ None of the three is solved by the interface. What the interface can do is avoid
 
 Contributions are stated using CRediT, the Contributor Roles Taxonomy (Brand et al., 2015; NISO, 2022), which is the standard the brief names. The same statement is built into the interface itself and is read from `task3/credits.json` every time the Credits window is opened, so it cannot drift out of step with what the report says.
 
-[FIG] task3/docs/figures/fig_credits.jpg | Figure 11 The Credits window, which reads the contribution statement from the project file
+[FIG] task3/docs/figures/fig_credits.jpg | Figure 14 The Credits window, which reads the contribution statement from the project file
 
 Table 7 Contribution statement (CRediT)
 
@@ -306,7 +324,7 @@ The brief asks for evidence that the group gave and received clear instructions 
 
 What the repository holds at the time of writing is the commit history, which begins with the Task 3 work because the individual tasks were built before the project was put under version control. That is stated plainly rather than disguised, an honest short history reads better in a viva than a long invented one, and the working rule from that point on has been to commit in small pieces with messages that say why a change was made rather than what changed, since the diff already says what.
 
-Alongside the history, `task3/docs/COOPERATION.md` holds the group's record: the meeting template, the task allocation table and the peer-review log. It also records the hand-over evidence that exists in the repository in a form a marker can check — Aman's two share folders arrived with a `HOW_TO_INTEGRATE.txt` for each task, written as instructions to whoever would do the integration, and those instructions are the reason his models are served from recorded results rather than run live, which is a decision taken from a written instruction and can be traced to it.
+Alongside the history, `task3/docs/COOPERATION.md` holds the group's record: the meeting template, the task allocation table and the peer-review log. It also records the hand-over evidence that exists in the repository in a form a marker can check — Aman's two share folders arrived with a `HOW_TO_INTEGRATE.txt` for each task, written as instructions to whoever would do the integration, and those instructions are the reason his models are served from recorded results rather than run live, which is a decision taken from a written instruction and can be traced to it. Adit's hand-over is evidence of a different kind and is recorded as such: her notebook carries a note inside the Task 1 code saying what a GUI would have to change to drive her method from a click, and the integration did exactly that, whilst her Task 2 weights never left the hosted session she trained in, which is why only sixteen of her scans can be shown. Both are worth minuting because they are the two ways a hand-over actually goes, one anticipated and one incomplete.
 
 **This section has to be completed by the group before submission.** The meeting records, the task-allocation table and the peer-review comments are in `COOPERATION.md` as a scaffold with the tables empty, and they must be filled in with what actually happened, by the people it happened to. Minutes written afterwards by one person are worth nothing if the group is asked about them in the viva, and the viva is where this gets tested.
 

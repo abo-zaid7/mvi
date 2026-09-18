@@ -55,13 +55,23 @@ PSO_SUBSET = 1000               # scans used per fitness evaluation
 PSO_SIZE = 128                  # smaller images keep the search affordable
 
 # ---------------------------------------------------------------- pruning
-PRUNE_RATIO = 0.4               # total fraction of channels to remove
+# The module carries a hard limit of 2 million trainable parameters, and the
+# unpruned model has 8.84 M, so the pruning stage is what has to get underneath
+# it rather than being an optional efficiency exercise.  0.55 over six rounds
+# lands the network on widths 8/32/60/116/232 and 1,963,474 parameters, which
+# is the closest fit under the limit that the width rounding allows - 0.536
+# comes out at 2,018,714 and is over it.
+#
+# The previous setting was 0.4 over 4 rounds, which gave 3.28 M parameters and
+# 0.8699 test Dice; that whole version is kept in task2/backup_ratio040/ so the
+# earlier figures can still be reproduced.
+PRUNE_RATIO = 0.55              # total fraction of channels to remove
 
 # Pruning all 40% in one go destroys the network - it drops to about 0.01 Dice
 # and has to be retrained from scratch, which defeats the point.  Removing the
 # channels over several rounds, with a short recovery after each, keeps the
 # model working the whole way down.  See prune.py for the measured comparison.
-PRUNE_ROUNDS = 4
+PRUNE_ROUNDS = 6
 PRUNE_ROUND_EPOCHS = 3          # short recovery after each round
 PRUNE_FINETUNE_EPOCHS = 12      # longer fine-tune once the target width is hit
 BN_RECALIBRATION_BATCHES = 100  # forward-only batches used to re-estimate BN stats

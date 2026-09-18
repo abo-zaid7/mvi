@@ -1,0 +1,8 @@
+{
+  "kind": "unet",
+  "input_size": 192,
+  "base_filters": 24,
+  "depth": 4,
+  "dropout": 0.21491861750807217,
+  "activation": "elu"
+}

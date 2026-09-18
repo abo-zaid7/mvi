@@ -28,7 +28,7 @@ const TRANSLATIONS = {
     "meta.speech": "en-GB",
 
     "app.title": "Medical Image Segmentation",
-    "app.subtitle": "Three datasets, six models, one interface",
+    "app.subtitle": "Four datasets, eight models, one interface",
 
     "header.language": "Language",
     "header.sound": "Sound effects on or off",
@@ -92,6 +92,8 @@ const TRANSLATIONS = {
     "dataset.brisc": "BRISC 2025 · brain MRI",
     "dataset.busi": "BUSI · breast ultrasound",
     "dataset.fives": "FIVES · retinal fundus",
+    "dataset.figshare": "Figshare · brain MRI",
+    "tumour.brain": "Brain MRI",
     "images.filter.cases": "The report cases only",
     "views.heatmap.recorded": "This model ships finished masks rather than running here, so there is no probability map to show - only the scan itself.",
 
@@ -289,7 +291,7 @@ const TRANSLATIONS = {
     "meta.speech": "ms-MY",
 
     "app.title": "Segmentasi Imej Perubatan",
-    "app.subtitle": "Tiga set data, enam model, satu antara muka",
+    "app.subtitle": "Empat set data, lapan model, satu antara muka",
 
     "header.language": "Bahasa",
     "header.sound": "Hidupkan atau matikan bunyi",
@@ -353,6 +355,8 @@ const TRANSLATIONS = {
     "dataset.brisc": "BRISC 2025 · MRI otak",
     "dataset.busi": "BUSI · ultrabunyi payudara",
     "dataset.fives": "FIVES · fundus retina",
+    "dataset.figshare": "Figshare · MRI otak",
+    "tumour.brain": "MRI otak",
     "images.filter.cases": "Kes laporan sahaja",
     "views.heatmap.recorded": "Model ini menghantar topeng siap dan tidak dijalankan di sini, jadi tiada peta kebarangkalian untuk ditunjukkan - hanya imbasan itu sendiri.",
 
@@ -550,7 +554,7 @@ const TRANSLATIONS = {
     "meta.speech": "ar-SA",
 
     "app.title": "تجزئة الصور الطبية",
-    "app.subtitle": "ثلاث مجموعات بيانات، ستة نماذج، واجهة واحدة",
+    "app.subtitle": "أربع مجموعات بيانات، ثمانية نماذج، واجهة واحدة",
 
     "header.language": "اللغة",
     "header.sound": "تشغيل أو إيقاف المؤثرات الصوتية",
@@ -614,6 +618,8 @@ const TRANSLATIONS = {
     "dataset.brisc": "BRISC 2025 · تصوير الدماغ بالرنين",
     "dataset.busi": "BUSI · موجات فوق صوتية للثدي",
     "dataset.fives": "FIVES · قاع العين",
+    "dataset.figshare": "Figshare · تصوير الدماغ بالرنين",
+    "tumour.brain": "تصوير الدماغ",
     "images.filter.cases": "حالات التقرير فقط",
     "views.heatmap.recorded": "هذا النموذج يقدّم أقنعة جاهزة ولا يعمل هنا، لذا لا توجد خريطة احتمالات لعرضها - الصورة فقط.",
 

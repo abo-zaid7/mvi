@@ -1,0 +1,13 @@
+{
+  "kind": "mha_resunet",
+  "input_size": 192,
+  "filters": [
+    32,
+    64,
+    128,
+    256,
+    512
+  ],
+  "heads": 4,
+  "dropout": 0.1
+}

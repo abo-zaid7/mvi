@@ -1,0 +1,18 @@
+{
+  "no_tta": {
+    "n_paired_images": 219,
+    "t_statistic": -13.975557403388878,
+    "p_value": 4.0717596150540635e-32,
+    "significant_at_0.05": true,
+    "mean_dice_baseline": 0.5701880222746074,
+    "mean_dice_proposed": 0.8047514286777857
+  },
+  "tta": {
+    "n_paired_images": 219,
+    "t_statistic": -14.138364214412704,
+    "p_value": 1.2185509874239415e-32,
+    "significant_at_0.05": true,
+    "mean_dice_baseline": 0.5805396000999418,
+    "mean_dice_proposed": 0.8202687195231148
+  }
+}

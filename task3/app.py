@@ -33,6 +33,7 @@ The routes are:
     GET  /api/export             the current case as a PNG strip
 """
 
+import csv
 import glob
 import io
 import json
@@ -66,6 +67,16 @@ TUMOUR_CODES = {"gl": "glioma", "me": "meningioma", "pi": "pituitary",
 # dataset in while the server is running is enough - it does not have to be
 # restarted.
 BUSI_TEST_LIST = os.path.join(busi_models.MODEL_DIR, "per_image_seed42_pruned_tta.csv")
+
+# Adit's Figshare set: 3,064 slices with the mask beside each one under the same
+# name, plus the 50 scans her Task 1 is reported on and the 200 her Task 2 was
+# tested on, both read out of her own output files so the picker cannot drift
+# away from what her chapter says.
+FIGSHARE_DIR = os.path.join(backends.PROJECT_DIR, "adit")
+FIGSHARE_IMAGES = os.path.join(FIGSHARE_DIR, "images")
+FIGSHARE_MASKS = os.path.join(FIGSHARE_DIR, "masks")
+FIGSHARE_TASK1_LIST = os.path.join(FIGSHARE_DIR, "outputs", "task1_50_image_results.csv")
+FIGSHARE_SPLIT = os.path.join(FIGSHARE_DIR, "outputs", "split_manifest.csv")
 
 UPLOAD_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
@@ -153,6 +164,9 @@ def image_folders(model_id=None):
         folders.extend(os.path.join(busi_root, cls)
                        for cls in busi_models.BUSI_CLASSES)
 
+    if os.path.isdir(FIGSHARE_IMAGES):
+        folders.append(FIGSHARE_IMAGES)
+
     for entry in members.ROSTER:
         if entry["kind"] != "recorded":
             continue
@@ -170,6 +184,11 @@ def safe_image_path(name, model_id=None):
         if candidate.startswith(os.path.realpath(folder)) and os.path.exists(candidate):
             return candidate
     raise ApiError("could not find that image: %s" % os.path.basename(name))
+
+
+def is_figshare(path):
+    """Whether a resolved scan came out of Adit's Figshare folder."""
+    return os.path.realpath(path).startswith(os.path.realpath(FIGSHARE_IMAGES) + os.sep)
 
 
 def is_fives(path):
@@ -271,6 +290,16 @@ def load_truth(path):
     if is_busi(path):
         return busi_truth(path)
 
+    if is_figshare(path):
+        mask_path = os.path.join(FIGSHARE_MASKS, os.path.basename(path))
+        if not os.path.exists(mask_path):
+            return None
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            return None
+        return cv2.resize(mask, (render.SIZE, render.SIZE),
+                          interpolation=cv2.INTER_NEAREST) > 127
+
     entry = is_fives(path)
     if entry:
         name = os.path.basename(path)[:-len("_input.png")]
@@ -343,7 +372,12 @@ def state():
                 # Where it is if it is here, and where to put it if it is not.
                 "expected_at": busi_root or busi_models.DATASET_CANDIDATES[0],
             },
-            # Amman's two sets cover the same 200 scans, so either one answers
+            "figshare": {
+                "present": os.path.isdir(FIGSHARE_IMAGES),
+                "images": len(glob.glob(os.path.join(FIGSHARE_IMAGES, "*.png"))),
+                "expected_at": FIGSHARE_IMAGES,
+            },
+            # Aman's two sets cover the same 200 scans, so either one answers
             # the question "are the retinal scans here".
             "fives": {
                 "present": bool(fives_entry() and
@@ -394,6 +428,56 @@ def busi_listing(wanted):
     return listing
 
 
+def figshare_names(path, column="image"):
+    """A set of file names read out of one of Adit's CSVs."""
+    names = set()
+    if not os.path.exists(path):
+        return names
+    with open(path, newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            value = (row.get(column) or "").strip()
+            if value:
+                names.add(os.path.basename(value))
+    return names
+
+
+def figshare_listing(wanted, task=None):
+    """
+    The Figshare half of /api/images.
+
+    "The evaluated scans only" means different scans for Adit's two models - 50
+    for Task 1 and 200 for Task 2 - so the task decides which list is offered,
+    the same way the filter follows the loaded model everywhere else.
+    """
+    def numeric(path):
+        stem = os.path.splitext(os.path.basename(path))[0]
+        return int(stem) if stem.isdigit() else 0
+
+    paths = sorted(glob.glob(os.path.join(FIGSHARE_IMAGES, "*.png")), key=numeric)
+    if not paths:
+        raise ApiError("no Figshare scans found - expected them at %s"
+                       % FIGSHARE_IMAGES, 404)
+
+    if task == 2:
+        evaluated = set()
+        if os.path.exists(FIGSHARE_SPLIT):
+            with open(FIGSHARE_SPLIT, newline="", encoding="utf-8") as handle:
+                evaluated = {os.path.basename(row["image"])
+                             for row in csv.DictReader(handle)
+                             if row.get("split") == "task2_test"}
+    else:
+        evaluated = figshare_names(FIGSHARE_TASK1_LIST)
+
+    listing = []
+    for path in paths:
+        name = os.path.basename(path)
+        if wanted == "evaluated" and name not in evaluated:
+            continue
+        listing.append({"name": name, "tumour_type": "brain",
+                        "in_test_set": name in evaluated})
+    return listing
+
+
 def fives_listing(wanted, model_id=None):
     """
     The FIVES half of /api/images.
@@ -428,6 +512,21 @@ def images():
     """
     if request.args.get("dataset") == "busi":
         listing = busi_listing(request.args.get("filter", "all"))
+        return jsonify({"ok": True, "images": listing, "total": len(listing)})
+
+    if request.args.get("dataset") == "figshare":
+        model_id = request.args.get("model") or ""
+
+        # Adit's Task 2 weights never came back from the hosted session, so that
+        # model is served from the sixteen cases she exported.  Offering the
+        # other 3,048 scans would let a user pick one and be told there is no
+        # prediction for it, so only the recorded ones are listed.
+        entry = members.find(model_id)
+        if entry and entry["kind"] == "recorded":
+            listing = fives_listing(request.args.get("filter", "all"), model_id)
+            return jsonify({"ok": True, "images": listing, "total": len(listing)})
+
+        listing = figshare_listing(request.args.get("filter", "all"), 1)
         return jsonify({"ok": True, "images": listing, "total": len(listing)})
 
     if request.args.get("dataset") == "fives":

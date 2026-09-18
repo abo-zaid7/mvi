@@ -63,8 +63,10 @@ KNOWN = {
                             "41 features per pixel, 120 trees"),
     "mha_resunet.h5": ("MHA-ResUNet (proposed)",
                        "residual U-Net, self-attention, dual attention gates"),
-    "mha_resunet_pruned.h5": ("MHA-ResUNet (pruned)",
-                              "40% of channels removed, 66% fewer FLOPs"),
+    "mha_resunet_narrow.h5": ("MHA-ResUNet (narrow)",
+                              "pruned widths retrained from scratch, 1.96 M parameters"),
+    "mha_resunet_pruned.h5": ("MHA-ResUNet (pruned, inherited weights)",
+                              "55% of channels removed, weights carried over"),
     "unet_pso.h5": ("U-Net (GWO-tuned baseline)",
                     "conventional U-Net, hyperparameters tuned by GWO"),
 }
@@ -237,6 +239,7 @@ class Task2Runner:
 
 # complexity.json is keyed by the names evaluate.py used, not by file name.
 COMPLEXITY_KEYS = {
+    "mha_resunet_narrow.h5": "proposed_narrow",
     "mha_resunet.h5": "proposed",
     "mha_resunet_pruned.h5": "proposed_pruned",
     "unet_pso.h5": "unet_pso",
@@ -281,10 +284,11 @@ def describe(entry):
     kind = entry["kind"]
 
     if kind == "recorded":
+        # ".../<student>/<share folder>/results" -> the share folder's name
         label = os.path.basename(os.path.dirname(entry["results_dir"]))
         size_mb = None
-    elif kind == "afnan_task1":
-        label = "afnan_task1.py"
+    elif kind in ("afnan_task1", "adit_task1"):
+        label = kind + ".py"
         size_mb = None
     else:
         label = os.path.basename(entry["id"])
@@ -389,6 +393,10 @@ def load(model_id):
         import afnan_task1
         info = afnan_task1.spec_sheet()
 
+    elif kind == "adit_task1":
+        import adit_task1
+        info = adit_task1.spec_sheet()
+
     else:
         path = check_path(model_id)
         if task_of(path) == 1:
@@ -430,6 +438,13 @@ def predict(model_id, image_path, image, box=None, want_probabilities=False):
     if kind == "afnan_task1":
         import afnan_task1
         return afnan_task1.segment(image)
+
+    if kind == "adit_task1":
+        import adit_task1
+        if box is None:
+            raise ModelError("this method is semi-automated - mark the lesion "
+                             "first, the centre of the box is its seed point")
+        return adit_task1.segment(image, box)
 
     model_path = check_path(model_id)
 

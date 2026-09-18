@@ -17,7 +17,8 @@ way:
     task1_forest   Salman's Random Forest, unpickled by the mvi-env worker
     keras          a network this process can load and run (Salman, Afnan)
     afnan_task1    Afnan's classical pipeline, ported from her notebook
-    recorded       Aman's results, which are read from disk rather than run
+    adit_task1     Adit's seeded pipeline, ported from her notebook
+    recorded       results read from disk rather than run (Aman, Adit)
 """
 
 import os
@@ -32,12 +33,17 @@ AMMAN_TASK2_DIR = os.path.join(PROJECT_DIR, "amman", "Task2_GUI_share 2")
 
 AFNAN_DIR = os.path.join(PROJECT_DIR, "afnan")
 
+# Adit trained in a hosted session and the weights did not come back with the
+# results, so her Task 2 is served from the sixteen report cases she did export,
+# rebuilt into the same layout Aman's share folders use.
+ADIT_DIR = os.path.join(PROJECT_DIR, "adit")
+
 
 ROSTER = [
     # ------------------------------------------------------------- Task 1
     {
         "id": os.path.join(PROJECT_DIR, "task1", "outputs", "rf_segmenter.joblib"),
-        "name": "SALMAN (ME)",
+        "name": "SALMAN ",
         "task": 1,
         "dataset": "brisc",
         "kind": "task1_forest",
@@ -57,7 +63,7 @@ ROSTER = [
     },
     {
         "id": "amman:task1",
-        "name": "AMMAN",
+        "name": "AMAN",
         "task": 1,
         "dataset": "fives",
         "kind": "recorded",
@@ -67,17 +73,27 @@ ROSTER = [
                 "results for all 200 test images",
         "needs_box": False,
     },
+    {
+        "id": "adit:task1",
+        "name": "ADIT",
+        "task": 1,
+        "dataset": "figshare",
+        "kind": "adit_task1",
+        "note": "Figshare brain MRI - one seed point, local K-Means in a window "
+                "round it, refined with a Chan-Vese contour",
+        "needs_box": True,
+    },
 
     # ------------------------------------------------------------- Task 2
     {
         "id": os.path.join(PROJECT_DIR, "task2", "outputs", "models",
-                           "mha_resunet_pruned.h5"),
-        "name": "SALMAN (ME)",
+                           "mha_resunet_narrow.h5"),
+        "name": "SALMAN",
         "task": 2,
         "dataset": "brisc",
         "kind": "keras",
-        "note": "BRISC 2025 brain MRI - MHA-ResUNet, structurally pruned: "
-                "66% fewer FLOPs at the same Dice",
+        "note": "BRISC 2025 brain MRI - MHA-ResUNet at the pruned widths, "
+                "1.96 M parameters and 2.79 GFLOPs, inside the 2 M limit",
         "needs_box": False,
     },
     {
@@ -92,7 +108,7 @@ ROSTER = [
     },
     {
         "id": "amman:task2",
-        "name": "AMMAN",
+        "name": "AMAN",
         "task": 2,
         "dataset": "fives",
         "kind": "recorded",
@@ -101,6 +117,18 @@ ROSTER = [
         "variant": "pruned",
         "note": "FIVES retinal fundus - attention U-Net with clDice, structurally "
                 "pruned and fine-tuned, recorded results",
+        "needs_box": False,
+    },
+    {
+        "id": "adit:task2",
+        "name": "ADIT",
+        "task": 2,
+        "dataset": "figshare",
+        "kind": "recorded",
+        "results_dir": os.path.join(ADIT_DIR, "gui_share", "results"),
+        "variant": None,
+        "note": "Figshare brain MRI - EfficientNet-B4 encoder U-Net tuned with "
+                "MealPy, recorded results for her sixteen report cases",
         "needs_box": False,
     },
 ]
@@ -117,6 +145,6 @@ def present(entry):
     """Whether the files this entry needs are actually on the machine."""
     if entry["kind"] == "recorded":
         return os.path.isdir(os.path.join(entry["results_dir"], "images"))
-    if entry["kind"] == "afnan_task1":
+    if entry["kind"] in ("afnan_task1", "adit_task1"):
         return True                      # pure code, nothing to find on disk
     return os.path.exists(entry["id"])

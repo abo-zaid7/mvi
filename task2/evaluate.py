@@ -27,6 +27,11 @@ import metrics
 import train
 
 MODELS = [
+    # The narrow model is the one that is submitted: 1,963,474 parameters, under
+    # the module's 2 M limit.  "proposed_pruned" is kept in the list because the
+    # 55% prune it now holds is the measured failure that sent the work to a
+    # from-scratch retrain, and a failure that is reported needs a number.
+    ("proposed_narrow", os.path.join(config.MODEL_DIR, "mha_resunet_narrow.h5")),
     ("proposed_pruned", config.PRUNED_MODEL),
     ("proposed", config.PROPOSED_MODEL),
     ("unet_pso", config.UNET_MODEL),

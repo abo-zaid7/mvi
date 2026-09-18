@@ -1,5 +1,5 @@
 {
-  "ratio": 0.4,
+  "ratio": 0.55,
   "old_filters": [
     32,
     64,
@@ -8,11 +8,11 @@
     512
   ],
   "new_filters": [
-    16,
-    40,
-    76,
-    152,
-    308
+    8,
+    32,
+    60,
+    116,
+    232
   ],
   "before": {
     "flops": 14926557023,
@@ -20,18 +20,18 @@
     "trainable_params": 8838017,
     "total_params": 8846849,
     "size_mb": 34.06,
-    "latency_s": 0.0474
+    "latency_s": 0.0495
   },
   "after": {
-    "flops": 5074629812,
-    "gflops": 5.075,
-    "trainable_params": 3283538,
-    "total_params": 3288794,
-    "size_mb": 12.86,
-    "latency_s": 0.0461
+    "flops": 2794368808,
+    "gflops": 2.794,
+    "trainable_params": 1963474,
+    "total_params": 1967458,
+    "size_mb": 7.82,
+    "latency_s": 0.037
   },
-  "rounds": 4,
-  "per_round_ratio": 0.1199,
+  "rounds": 6,
+  "per_round_ratio": 0.1246,
   "journey": [
     {
       "round": 1,
@@ -40,11 +40,11 @@
         56,
         112,
         224,
-        452
+        448
       ],
-      "dice_after_transfer": 0.46826183795928955,
-      "dice_after_bn_recalibration": 0.8065175414085388,
-      "dice_after_recovery": 0.8675662279129028
+      "dice_after_transfer": 0.4660693407058716,
+      "dice_after_bn_recalibration": 0.8054471015930176,
+      "dice_after_recovery": 0.8687589764595032
     },
     {
       "round": 2,
@@ -53,11 +53,11 @@
         48,
         100,
         196,
-        396
+        392
       ],
-      "dice_after_transfer": 0.4972228705883026,
-      "dice_after_bn_recalibration": 0.8155274391174316,
-      "dice_after_recovery": 0.8657473921775818
+      "dice_after_transfer": 0.464643657207489,
+      "dice_after_bn_recalibration": 0.8179335594177246,
+      "dice_after_recovery": 0.8631460070610046
     },
     {
       "round": 3,
@@ -66,11 +66,11 @@
         44,
         88,
         172,
-        348
+        344
       ],
-      "dice_after_transfer": 0.23690620064735413,
-      "dice_after_bn_recalibration": 0.7628012299537659,
-      "dice_after_recovery": 0.8650916218757629
+      "dice_after_transfer": 0.26775678992271423,
+      "dice_after_bn_recalibration": 0.7751821279525757,
+      "dice_after_recovery": 0.8649725914001465
     },
     {
       "round": 4,
@@ -79,14 +79,40 @@
         40,
         76,
         152,
-        308
+        300
       ],
-      "dice_after_transfer": 0.47335660457611084,
-      "dice_after_bn_recalibration": 0.7301023006439209,
-      "dice_after_recovery": 0.862834632396698
+      "dice_after_transfer": 0.33239442110061646,
+      "dice_after_bn_recalibration": 0.7813905477523804,
+      "dice_after_recovery": 0.8649453520774841
+    },
+    {
+      "round": 5,
+      "filters": [
+        12,
+        36,
+        68,
+        132,
+        264
+      ],
+      "dice_after_transfer": 0.0843648836016655,
+      "dice_after_bn_recalibration": 0.18240471184253693,
+      "dice_after_recovery": 0.8514615893363953
+    },
+    {
+      "round": 6,
+      "filters": [
+        8,
+        32,
+        60,
+        116,
+        232
+      ],
+      "dice_after_transfer": 0.076908640563488,
+      "dice_after_bn_recalibration": 0.29029881954193115,
+      "dice_after_recovery": 0.5342146158218384
     }
   ],
   "recalibration_batches": 100,
-  "val_dice_after_finetune": 0.8711604475975037,
-  "finetune_minutes": 33.2
+  "val_dice_after_finetune": 0.5915951132774353,
+  "finetune_minutes": 28.8
 }

@@ -1,0 +1,142 @@
+{
+  "n_test_images": 219,
+  "input_size": 224,
+  "pso_best_hyperparameters": {
+    "base_filters": 32,
+    "activation": "relu",
+    "dropout_rate": 0.4,
+    "learning_rate": 0.003000000000000001
+  },
+  "models": [
+    {
+      "model": "proposed",
+      "params": 11809068,
+      "flops_g": 10.1154032,
+      "size_mb": 45.04802322387695,
+      "tta": false,
+      "mean_dice": 0.8047514286777857,
+      "median_dice": 0.8825522303783173,
+      "n_dice_ge_085": 130,
+      "mean_iou": 0.7154185183109741,
+      "mean_accuracy": 0.9938863118489584,
+      "mean_hd95": 25.899637009502257,
+      "mean_latency_s": 0.06764948744375734
+    },
+    {
+      "model": "proposed",
+      "params": 11809068,
+      "flops_g": 10.1154032,
+      "size_mb": 45.04802322387695,
+      "tta": true,
+      "mean_dice": 0.8202687195231148,
+      "median_dice": 0.8905852417302799,
+      "n_dice_ge_085": 135,
+      "mean_iou": 0.7323232526682802,
+      "mean_accuracy": 0.9945867529742793,
+      "mean_hd95": 29.49753985137695,
+      "mean_latency_s": 0.2650046006685493
+    },
+    {
+      "model": "proposed_pruned",
+      "params": 7316288,
+      "flops_g": 8.264914672,
+      "size_mb": 27.909427642822266,
+      "tta": false,
+      "mean_dice": 0.7895278658443058,
+      "median_dice": 0.8583543664815749,
+      "n_dice_ge_085": 113,
+      "mean_iou": 0.6852930666612986,
+      "mean_accuracy": 0.9926154254234001,
+      "mean_hd95": 29.09462687907767,
+      "mean_latency_s": 0.06392843187462377
+    },
+    {
+      "model": "proposed_pruned",
+      "params": 7316288,
+      "flops_g": 8.264914672,
+      "size_mb": 27.909427642822266,
+      "tta": true,
+      "mean_dice": 0.807104536738379,
+      "median_dice": 0.869639794168096,
+      "n_dice_ge_085": 118,
+      "mean_iou": 0.7076521161137435,
+      "mean_accuracy": 0.9933583681986212,
+      "mean_hd95": 26.869449925278545,
+      "mean_latency_s": 0.24260844542569435
+    },
+    {
+      "model": "baseline_pso_unet",
+      "params": 7771297,
+      "flops_g": 17.604149248,
+      "size_mb": 29.645145416259766,
+      "tta": false,
+      "mean_dice": 0.5701880222746074,
+      "median_dice": 0.6227168464871294,
+      "n_dice_ge_085": 30,
+      "mean_iou": 0.44349347154631813,
+      "mean_accuracy": 0.9842768281562143,
+      "mean_hd95": 100.77550048818418,
+      "mean_latency_s": 0.07363620646203312
+    },
+    {
+      "model": "baseline_pso_unet",
+      "params": 7771297,
+      "flops_g": 17.604149248,
+      "size_mb": 29.645145416259766,
+      "tta": true,
+      "mean_dice": 0.5805396000999418,
+      "median_dice": 0.6369297610427227,
+      "n_dice_ge_085": 41,
+      "mean_iou": 0.45764302783368493,
+      "mean_accuracy": 0.9849801085310984,
+      "mean_hd95": 99.8353178838997,
+      "mean_latency_s": 0.2901106839776294
+    },
+    {
+      "model": "proposed_pruned_tfmot",
+      "params": 7316288,
+      "flops_g": 8.264914672,
+      "size_mb": 27.909427642822266,
+      "tta": false,
+      "mean_dice": 0.7034067916791893,
+      "median_dice": 0.7992459341150909,
+      "n_dice_ge_085": 97,
+      "mean_iou": 0.6038222243948134,
+      "mean_accuracy": 0.9906687453457209,
+      "mean_hd95": 62.006658400107256,
+      "mean_latency_s": 0.07797910656182512
+    },
+    {
+      "model": "proposed_pruned_tfmot",
+      "params": 7316288,
+      "flops_g": 8.264914672,
+      "size_mb": 27.909427642822266,
+      "tta": true,
+      "mean_dice": 0.7248409599985052,
+      "median_dice": 0.8405797101449275,
+      "n_dice_ge_085": 103,
+      "mean_iou": 0.6277401085121679,
+      "mean_accuracy": 0.9918393871011255,
+      "mean_hd95": 56.254770096401955,
+      "mean_latency_s": 0.24789963378071292
+    }
+  ],
+  "baseline_vs_proposed_ttest": {
+    "no_tta": {
+      "n_paired_images": 219,
+      "t_statistic": -13.975557403388878,
+      "p_value": 4.0717596150540635e-32,
+      "significant_at_0.05": true,
+      "mean_dice_baseline": 0.5701880222746074,
+      "mean_dice_proposed": 0.8047514286777857
+    },
+    "tta": {
+      "n_paired_images": 219,
+      "t_statistic": -14.138364214412704,
+      "p_value": 1.2185509874239415e-32,
+      "significant_at_0.05": true,
+      "mean_dice_baseline": 0.5805396000999418,
+      "mean_dice_proposed": 0.8202687195231148
+    }
+  }
+}

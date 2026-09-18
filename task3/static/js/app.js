@@ -322,6 +322,12 @@ async function loadModel(modelId, button) {
      * score that mean nothing at all. */
     if (state.loadedDataset !== state.dataset) {
       await useDataset(state.loadedDataset);
+    } else {
+      /* Same dataset, different model, so the picker still has to be refetched:
+       * two models can share a dataset and still be scored on different scans -
+       * Adit's Task 1 is reported on 50 Figshare slices and her Task 2 on the
+       * sixteen cases she exported predictions for. */
+      await refreshImages();
     }
 
     const model = state.models.find((entry) => entry.id === modelId);
@@ -844,22 +850,33 @@ function showResults(data) {
   grid.innerHTML = "";
 
   METRIC_ROWS.forEach((key) => {
+    /* Not every model reports every metric - the recorded results carry
+     * whatever their author measured, and Adit's per-image file has no
+     * sensitivity or precision column.  A row that would read NaN is left out
+     * rather than printed, because a missing measurement and a measurement of
+     * zero are not the same thing. */
+    const value = metrics[key];
+    if (value === undefined || value === null || Number.isNaN(Number(value))) return;
+
     const term = document.createElement("dt");
     term.textContent = i18n.t(`metrics.${key}`);
 
     const definition = document.createElement("dd");
     definition.textContent = key === "hd95"
       ? `${fixed(metrics.hd95, 2)} px`
-      : fixed(metrics[key]);
+      : fixed(value);
 
     grid.append(term, definition);
   });
 
-  const latency = document.createElement("dt");
-  latency.textContent = i18n.t("metrics.latency");
-  const latencyValue = document.createElement("dd");
-  latencyValue.textContent = `${data.latency_ms} ms`;
-  grid.append(latency, latencyValue);
+  /* Recorded results were not timed here, so there is no latency to report. */
+  if (data.latency_ms !== null && data.latency_ms !== undefined) {
+    const latency = document.createElement("dt");
+    latency.textContent = i18n.t("metrics.latency");
+    const latencyValue = document.createElement("dd");
+    latencyValue.textContent = `${data.latency_ms} ms`;
+    grid.append(latency, latencyValue);
+  }
 
   renderInterpretation(data);
 }
@@ -884,10 +901,18 @@ function renderInterpretation(data) {
   container.innerHTML = "";
 
   const metrics = data.metrics;
-  const lines = [
-    i18n.t("interp.hd95", fixed(metrics.hd95, 1)),
-    i18n.t("interp.sens", percent(metrics.sensitivity), percent(metrics.precision)),
-  ];
+  const has = (key) => metrics[key] !== undefined && metrics[key] !== null
+    && !Number.isNaN(Number(metrics[key]));
+
+  const lines = [];
+  if (has("hd95")) lines.push(i18n.t("interp.hd95", fixed(metrics.hd95, 1)));
+  /* Same reason as the metric rows: a recorded result only carries what its
+   * author measured, and a sentence about NaN% of the tumour is worse than no
+   * sentence at all. */
+  if (has("sensitivity") && has("precision")) {
+    lines.push(i18n.t("interp.sens", percent(metrics.sensitivity),
+                      percent(metrics.precision)));
+  }
 
   if (data.truth_pixels !== null && data.truth_pixels !== undefined) {
     lines.push(i18n.t("metrics.pixels", data.predicted_pixels, data.truth_pixels));

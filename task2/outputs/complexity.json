@@ -1,12 +1,21 @@
 {
+  "proposed_narrow": {
+    "flops": 2794368808,
+    "gflops": 2.794,
+    "trainable_params": 1963474,
+    "total_params": 1967458,
+    "size_mb": 7.82,
+    "latency_s": 0.0339,
+    "batch_seconds_per_image": 0.0086
+  },
   "proposed_pruned": {
-    "flops": 5074629812,
-    "gflops": 5.075,
-    "trainable_params": 3283538,
-    "total_params": 3288794,
-    "size_mb": 12.86,
-    "latency_s": 0.0412,
-    "batch_seconds_per_image": 0.0112
+    "flops": 2794368808,
+    "gflops": 2.794,
+    "trainable_params": 1963474,
+    "total_params": 1967458,
+    "size_mb": 7.82,
+    "latency_s": 0.0336,
+    "batch_seconds_per_image": 0.0059
   },
   "proposed": {
     "flops": 14926557023,
@@ -14,8 +23,8 @@
     "trainable_params": 8838017,
     "total_params": 8846849,
     "size_mb": 34.06,
-    "latency_s": 0.0468,
-    "batch_seconds_per_image": 0.0124
+    "latency_s": 0.0406,
+    "batch_seconds_per_image": 0.0093
   },
   "unet_pso": {
     "flops": 7622701056,
@@ -23,7 +32,7 @@
     "trainable_params": 4367641,
     "total_params": 4372057,
     "size_mb": 16.84,
-    "latency_s": 0.0534,
-    "batch_seconds_per_image": 0.0116
+    "latency_s": 0.0494,
+    "batch_seconds_per_image": 0.0107
   }
 }

@@ -146,11 +146,12 @@ The list holds one Task 1 and one Task 2 model per student, named after their au
 
 | | Task 1 (semi-automated / classical) | Task 2 (deep learning) |
 |---|---|---|
-| **SALMAN (ME)** | BRISC 2025 brain MRI — Random Forest on 41 features per pixel, driven by one box the user drags | BRISC 2025 — MHA-ResUNet, structurally pruned |
+| **SALMAN (ME)** | BRISC 2025 brain MRI — Random Forest on 41 features per pixel, driven by one box the user drags | BRISC 2025 — MHA-ResUNet at the pruned widths, 1.96 M parameters |
 | **AFNAN** | BUSI breast ultrasound — multi-Otsu and blob proposals, scored and refined with a Chan-Vese contour | BUSI — residual V-Net blocks, ASPP bottleneck, fused attention gates, pruned |
 | **AMMAN** | FIVES retinal fundus — classical vessel segmentation | FIVES — attention U-Net with clDice, structurally pruned and fine-tuned |
+| **ADIT** | Figshare brain MRI — one seed point, local K-Means around it, refined with a Chan-Vese contour | Figshare — EfficientNet-B4 encoder U-Net tuned with MealPy |
 
-Three students, three datasets, three ways of running. `members.py` is the one place
+Four students, four datasets, four ways of running. `members.py` is the one place
 that says which is which, and everything else asks it:
 
 - **Salman's Task 1** is unpickled by a helper process on `mvi-env` (§3.2).
@@ -159,6 +160,16 @@ that says which is which, and everything else asks it:
   live on CPU. There is no trained file behind it — the spec sheet describes the stages
   instead of weights, and reports 0 parameters, which is the honest answer for a
   classical method rather than a missing one.
+- **Adit's Task 1** is her notebook pipeline ported into `adit_task1.py` and runs live.
+  Her method wants one point inside the lesion rather than a box, so the centre of the
+  box the user drags is taken as that point — her own notebook says swapping the seed
+  source is the only change needed to go from her batch evaluation to an interactive
+  tool, and this is that change.
+- **Adit's Task 2** is recorded as well, but for a different reason: she trained in a
+  hosted session and the weights did not come back with the results, so the sixteen
+  report cases she exported were rebuilt into the same layout Aman's share folders use.
+  Only those sixteen are offered in the picker, because the other 3,048 scans have no
+  prediction to show.
 - **Aman's two** are read back from the recorded results he handed over, not run. His
   Task 2 checkpoint is a Keras 3 file and this GUI runs TensorFlow 2.13, which cannot
   deserialise it; both of his share folders ship every test image, its ground truth and
@@ -398,6 +409,7 @@ it — that file describes the architecture so the weights can be loaded back.
 | `members.py` | Who owns which model, and how each one has to be run |
 | `busi_models.py` | Afnan's ultrasound networks: padded input pipeline, TTA, spec sheet |
 | `afnan_task1.py` | Afnan's classical ultrasound pipeline, ported from her notebook |
+| `adit_task1.py` | Adit's seeded brain MRI pipeline, ported from her notebook |
 | `fives_results.py` | Aman's recorded FIVES results: listing, masks and metrics |
 | `task1_worker.py` | Runs on `mvi-env` and serves the Random Forest |
 | `render.py` | Draws the six views and the export strip |

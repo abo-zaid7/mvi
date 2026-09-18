@@ -15,9 +15,11 @@ headings, paragraphs, bullet lists, pipe tables and [FIG] picture lines.
 
 import os
 import re
+import struct
 
 from docx import Document
 from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt
 
@@ -104,13 +106,50 @@ def add_table(document, rows):
     return table
 
 
+def image_size(path):
+    """Pixel width and height, read out of the file's own header."""
+    with open(path, "rb") as handle:
+        head = handle.read(32)
+    if head[:8] == b"\x89PNG\r\n\x1a\n":
+        return struct.unpack(">II", head[16:24])
+    # JPEG: walk the segments until the frame header gives the size
+    with open(path, "rb") as handle:
+        data = handle.read()
+    index = 2
+    while index < len(data) - 9:
+        if data[index] != 0xFF:
+            index += 1
+            continue
+        marker, length = data[index + 1], struct.unpack(">H", data[index + 2:index + 4])[0]
+        if marker in (0xC0, 0xC1, 0xC2, 0xC3):
+            height, width = struct.unpack(">HH", data[index + 5:index + 9])
+            return width, height
+        index += 2 + length
+    return 1, 1
+
+
+# A4 with the template's one inch margins leaves this much text width.
+PAGE_WIDTH = 6.2
+MAX_HEIGHT = 8.2
+
+
 def add_figure(document, path, caption):
     if not os.path.exists(path):
         print("  missing figure, skipped:", path)
         return
+
+    # A flowchart that is three times wider than it is tall is unreadable at the
+    # width a square scan wants, so every figure is sized from its own shape:
+    # wide ones take the full text width, tall ones are capped by page height.
+    pixel_w, pixel_h = image_size(path)
+    aspect = pixel_w / float(pixel_h or 1)
+    width = PAGE_WIDTH if aspect >= 1.25 else 4.6
+    if width / aspect > MAX_HEIGHT:
+        width = MAX_HEIGHT * aspect
+
     paragraph = document.add_paragraph()
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    paragraph.add_run().add_picture(path, width=Inches(4.6))
+    paragraph.add_run().add_picture(path, width=Inches(width))
 
     line = document.add_paragraph(caption, style="Caption")
     line.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -131,9 +170,41 @@ def add_title_block(document):
     document.add_paragraph()
 
 
+def add_figure_index(document):
+    """
+    The List of Figures the earlier report opened with.
+
+    Word builds it from the Caption paragraphs when the field is updated, which
+    is why the page numbers cannot be written here - select all and press F9, or
+    right-click the list and choose "Update field", once the document is open.
+    """
+    document.add_paragraph("List of Figures", style="Heading 1")
+
+    paragraph = document.add_paragraph()
+    run = paragraph.add_run()
+
+    begin = OxmlElement("w:fldChar")
+    begin.set(qn("w:fldCharType"), "begin")
+    instruction = OxmlElement("w:instrText")
+    instruction.set(qn("xml:space"), "preserve")
+    instruction.text = ' TOC \\h \\z \\c "Figure" '
+    separate = OxmlElement("w:fldChar")
+    separate.set(qn("w:fldCharType"), "separate")
+    placeholder = OxmlElement("w:t")
+    placeholder.text = "Right-click here and choose Update field to build the list."
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+
+    for node in (begin, instruction, separate, placeholder, end):
+        run._r.append(node)
+
+    document.add_paragraph()
+
+
 def convert():
     document = blank_template()
     add_title_block(document)
+    add_figure_index(document)
 
     with open(SOURCE, encoding="utf-8") as handle:
         lines = handle.read().split("\n")

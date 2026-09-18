@@ -1,0 +1,2 @@
+Test_images,Interaction_points_per_image,Mean_Dice,Mean_IoU,Mean_Accuracy,Mean_HD95_px,Dice_ge_0.85_count,Mean_Dice_ge_0.85,At_least_20_images_ge_0.85,Beats_unsupervised_baseline,Marking_Scheme_Band,Overall
+50,1,0.7840969481456256,0.6814043844277292,0.9931983184814454,19.980610102281613,26,False,True,True,Distinction (>=0.85 Dice on >=20/50 images),ACHIEVED

@@ -4,7 +4,7 @@ Brain tumours are one of the most serious intracranial conditions, and magnetic 
 
 The bottleneck is the manual outlining itself. In current practice a radiologist or a dosimetrist draws the lesion by hand on every slice of the study, which takes roughly 10 to 20 minutes per study, and more importantly it is inconsistent, the same observer will not draw the same boundary twice and two observers will differ more still. Because response assessment works by comparing a volume today against a volume from three months ago, that inconsistency feeds directly into the treatment decision. A semi-automated or automated step does not replace the clinician here, it removes the drawing work and leaves the judgement where it belongs, which also helps where expert coverage is limited.
 
-Dataset: BRISC 2025, brain tumour MRI, accessed through https://www.kaggle.com/datasets/briscdataset/brisc2025 and accompanied by Fateh et al. (2025). The release provides 6,000 T1-weighted slices with radiologist-reviewed pixel-level masks across glioma, meningioma, pituitary and no-tumour classes in axial, coronal and sagittal planes. The segmentation subset used here holds 3,933 training and 860 test image/mask pairs and all of them contain a tumour. The images arrive at several native resolutions (mostly 512×512, with a tail down to about 200×200 and up to 1427×1275), so every image and mask is resampled to a common 512×512 before anything else happens and every metric in this chapter is computed in that 512×512 space, which is what makes the Task 1 and Task 2 numbers directly comparable to each other. Two tasks were addressed: Task 1 uses classical image processing with one user-drawn box and a supervised pixel classifier, Task 2 uses a deep learning model that is structurally pruned to cut its floating point operations.
+Dataset: BRISC 2025, brain tumour MRI, accessed through https://www.kaggle.com/datasets/briscdataset/brisc2025 and accompanied by Fateh et al. (2025). The release provides 6,000 T1-weighted slices with radiologist-reviewed pixel-level masks across glioma, meningioma, pituitary and no-tumour classes in axial, coronal and sagittal planes. The segmentation subset used here holds 3,933 training and 860 test image/mask pairs and all of them contain a tumour. The images arrive at several native resolutions (mostly 512×512, with a tail down to about 200×200 and up to 1427×1275), so every image and mask is resampled to a common 512×512 before anything else happens and every metric in this chapter is computed in that 512×512 space, which is what makes the Task 1 and Task 2 numbers directly comparable to each other. Two tasks were addressed: Task 1 uses classical image processing with one user-drawn box and a supervised pixel classifier, Task 2 uses a deep learning model that is structurally pruned to cut its floating point operations and to bring it inside the module's two million parameter limit.
 
 ## 1.1 literature review
 
@@ -33,6 +33,10 @@ The algorithm produces a binary mask from the input scan through four stages:
 - The classification stage is a Random Forest with 120 trees, min_samples_leaf of 20, max_features set to sqrt and class_weight set to balanced. It is trained on 400 scans × 700 sampled pixels, which is 280,000 rows, drawn 50% lesion, 25% near the boundary and 25% far background, deliberately weighted towards the boundary because that is where the errors actually happen. Training takes 36 seconds on CPU.
 - The post-processing stage smooths the probability map with a Gaussian at sigma 1.5, thresholds it at 0.5, applies a morphological closing, fills the holes, keeps the largest connected component and pastes the result back into the full 512×512 frame.
 
+Shown in Figure 1 below is the same four stages drawn end to end, from the box the user drags to the mask that comes back.
+
+[FIG] report_figures/fig_task1_chain.png | Figure 1 Task 1 pipeline, from the user's box to the binary mask
+
 The geometry and the context groups are the only route the user's input takes into the model, and that is what makes this method semi-automated rather than automatic. The trained forest confirms how much work that input does, the box_elliptical_dist feature alone carries 26.6% of the total feature importance with inside_box, box_dist_x and box_dist_y also sitting in the top six, so the single most informative thing the classifier knows about a pixel is where it sits relative to the box the clinician drew.
 
 Table 1 Task 1 pipeline parameters
@@ -52,6 +56,10 @@ Table 1 Task 1 pipeline parameters
 | Training | pixel sampling balance | 50% lesion, 25% boundary, 25% background |
 | Post-process | probability smoothing sigma, threshold | 1.5, 0.5 |
 | Evaluation | simulated box slack per side | random 2–20% |
+
+Flowchart for the segment() routine in task1/segmenter.py, with the two points where it refuses to invent an answer (shown Figure 2):
+
+[FIG] report_figures/fig_task1_flowchart.png | Figure 2 task1/segmenter.py segment() flowchart, four stages and two decisions
 
 The unsupervised comparison methods are Otsu thresholding (Otsu, 1979), k-means clustering on intensity with k set to 3, classical seeded region growing, and morphological Chan-Vese active contours (Marquez-Neila et al., 2014). All four receive the identical simulated user box and the identical preprocessing, the only thing that changes between them is the segmentation decision itself, so the comparison is on the decision and not on the pipeline around it.
 
@@ -83,7 +91,7 @@ Table 3 Task 1 Dice by tumour type (50 scans)
 
 The split by tumour type is the more informative result. Meningiomas and pituitary adenomas are compact and well circumscribed so a box plus an intensity-and-texture classifier handles them easily, gliomas infiltrate the tissue around them and their margin is ambiguous even between expert human raters, which is the ceiling any reported glioma Dice should be read against rather than being treated as an implementation defect.
 
-[FIG] task1/outputs/qualitative/00_proposed.png | Figure 1 Task 1 output on a meningioma, white/cyan box: the simulated user box, green: ground truth, red: prediction
+[FIG] task1/outputs/qualitative/00_proposed.png | Figure 3 Task 1 output on a meningioma, white/cyan box: the simulated user box, green: ground truth, red: prediction
 
 ## 2.3 Model compression
 
@@ -117,13 +125,21 @@ Two models were compared using the same images, the same preprocessing, the same
 
 The dual gate is where this model departs from Attention U-Net rather than merely reimplementing it. A standard attention gate produces one spatial map that says where to attend but treats all 256 channels of a skip as equally relevant, this gate adds a squeeze-and-excitation branch alongside the spatial branch so the skip is reweighted by where and by which features at the same time, the skip output being the skip multiplied by the spatial attention and then by the channel attention. Both branches are driven by the decoder's gating signal, so the deeper semantic features are the ones deciding what the shallow features are allowed to pass. The self-attention at the bottleneck addresses a failure mode that is specific to brain MRI, a convolution cannot compare a candidate lesion against the corresponding structure on the other side of the midline because the two sit outside each other's receptive field, whereas at the 12×12 bottleneck grid every position attends to every other one. The key dimension is deliberately held at a constant 64 instead of being set to channels divided by heads, because if it scaled with the channel count then pruning the bottleneck would reshape the attention weights in a way that cannot be sliced and the pruned model would not be able to inherit them, which is a design decision taken in Section 3.1 purely to make Section 3.3 possible.
 
+In Figure 4 the residual encoder and decoder are shown with the gates that sit between them, and every width is given as it was trained and then as it was pruned.
+
+[FIG] report_figures/fig_task2_architecture.png | Figure 4 The MHA-ResUNet, with each width given as trained then pruned. The dual attention gates sit on the four skip connections and the self-attention sits at the bottleneck
+
 Particle Swarm Optimisation was used on the benchmark with the standard velocity update, inertia 0.7 and both the cognitive and social coefficients at 1.5, following v ← w·v + c₁·r₁·(personal_best − x) + c₂·r₂·(global_best − x) and x ← x + v. The search used 6 particles over 4 iterations, which is 24 fitness evaluations, each one a 6 epoch run on 1,000 scans at 128×128, and the whole search took 30.4 minutes. Searching at a smaller resolution on a subset is what keeps the search affordable, the ranking of the candidates is what matters at this stage rather than the absolute Dice any of them reaches.
+
+The search itself is drawn in Figure 5.
+
+[FIG] report_figures/fig_task2_pso.png | Figure 5 The PSO search that tunes the benchmark U-Net, 6 particles over 4 iterations
 
 Table 5 Final tuned hyperparameters
 
 | Setting | Benchmark U-Net (PSO tuned) | Innovation MHA-ResUNet |
 |---|---|---|
-| Base filters | 24 (searched over 8–48) | 32, giving 32/64/128/256 and a 512 bottleneck |
+| Base filters | 24 (searched over 8–48) | 32, giving 32/64/128/256 and a 512 bottleneck, pruned to 8/32/60/116/232 for the submitted model |
 | Dropout | 0.215 (searched over 0.0–0.4) | 0.1, fixed |
 | Activation | elu (searched over relu/elu) | relu |
 | Learning rate | 1.85×10⁻³ (searched over 1×10⁻⁴–5×10⁻³, log scale) | 5×10⁻⁴ |
@@ -137,6 +153,10 @@ Both models were then trained under identical final settings, Adam at the learni
 
 One training detail is worth reporting because it was the difference between a working model and a broken one. BatchNorm momentum is set to 0.9 rather than the Keras default of 0.99, at the default the running statistics update too slowly for these batch sizes and the training Dice looked healthy whilst the validation number swung between 0.42 and 0.70 from epoch to epoch. That single change, together with batch 16 and the lower learning rate, took the model from a plateau around 0.55 to 0.87, and it is reported here because a reader reproducing this work would otherwise spend a long time assuming the architecture was at fault.
 
+Figure 6 is the whole of Task 2 in one line: the two trainings, the search that tunes the benchmark, the pruning that the parameter limit forced, and the retrain that is what actually gets submitted.
+
+[FIG] report_figures/fig_task2_pipeline.png | Figure 6 Task 2 from training to the submitted model, with the measured time for each stage
+
 To check that the extra components earn the parameters they cost rather than the improvement coming from the training recipe, both architectures were trained on an identical 1,200 scan subset for 8 epochs under identical settings, the MHA-ResUNet reached a validation Dice of 0.719 against 0.580 for the plain U-Net, so the gap is in the architecture and not in the schedule.
 
 ## 3.2 Results
@@ -147,25 +167,28 @@ Table 6 Task 2 held-out comparison on 200 test scans
 
 | Model | Dice | Median | IoU | Accuracy | HD95 (px) | GFLOPs | Parameters | Size (MB) | Latency (ms) |
 |---|---|---|---|---|---|---|---|---|---|
-| MHA-ResUNet pruned | 0.8699 | 0.9286 | 0.7949 | 0.9962 | 14.77 | 5.08 | 3.28 M | 12.86 | 41.2 |
-| MHA-ResUNet | 0.8692 | 0.9312 | 0.7934 | 0.9960 | 14.49 | 14.93 | 8.84 M | 34.06 | 46.8 |
-| U-Net (PSO tuned) | 0.8352 | 0.9172 | 0.7549 | 0.9952 | 25.98 | 7.62 | 4.37 M | 16.84 | 53.4 |
+| MHA-ResUNet narrow (submitted) | 0.8543 | 0.9296 | 0.7795 | 0.9959 | 13.93 | 2.79 | 1.96 M | 7.82 | 33.9 |
+| MHA-ResUNet full | 0.8692 | 0.9312 | 0.7934 | 0.9960 | 14.49 | 14.93 | 8.84 M | 34.06 | 40.6 |
+| MHA-ResUNet narrow, weights inherited | 0.8503 | 0.9134 | 0.7685 | 0.9955 | 17.78 | 2.79 | 1.96 M | 7.82 | 33.6 |
+| U-Net (PSO tuned) | 0.8352 | 0.9172 | 0.7549 | 0.9952 | 25.98 | 7.62 | 4.37 M | 16.84 | 49.4 |
 
-Three things come out of this table. The pruned model matches the full model, 0.8699 against 0.8692, whilst using 66% fewer FLOPs, so removing 40% of the channels and fine-tuning acted as a regulariser rather than as a cost. Against the PSO tuned benchmark the pruned model wins on every accuracy metric in the table whilst using 33% fewer FLOPs, 25% fewer parameters and 24% less disk, which is the comparison the brief actually asks for. The place where the architecture separates itself most is not Dice but the boundary, HD95 of 14.77 pixels against 25.98 is a 43% reduction in boundary error, and that is consistent with what the dual gate is supposed to do since a gate that reweights the skip connections is acting exactly where the fine boundary detail is carried.
+The model that is submitted is the narrow one on the first row, because the module sets a limit of two million trainable parameters and it is the only version of the proposed architecture that is inside it, at 1,963,474. How it was arrived at is Section 3.3; the short version is that the pruning stage chose its widths and it was then retrained from scratch at those widths rather than inheriting the pruned weights.
 
-On the per-image counts, a Dice of 0.85 or better is reached on 153 of 200 scans for the unpruned model, 151 of 200 for the pruned one and 137 of 200 for the tuned U-Net, and a Dice of 0.70 or better is reached on 184 of 200 for the pruned model which is the best of the three, so the pruned model trades a small number of its very best cases for fewer poor ones.
+Four things come out of this table. The narrow model costs 1.5 Dice points against the full model, 0.8543 against 0.8692, for 78% fewer parameters and 81% fewer FLOPs, which is the trade the parameter limit forces and it is a cheap one. Its boundary is the best of all four, HD95 13.93 pixels against 14.49 for the full model and 25.98 for the tuned U-Net, which is a 46% reduction against the benchmark and is the single most useful number in the table, a narrower network being better at the boundary than the wide one it came from is not the result anybody would predict and it is worth saying that it is measured rather than expected. Against the PSO tuned benchmark the narrow model wins on every accuracy metric whilst using 63% fewer FLOPs, 55% fewer parameters and 54% less disk, which is the comparison the brief actually asks for. And the last row is the same architecture with the pruned weights carried over instead of retrained, which scores lower on everything and is discussed in Section 3.3 because what it shows about pruning matters more than the 0.4 Dice points between them.
 
-Table 7 Task 2 Dice by tumour type (pruned model, 200 scans)
+On the per-image counts, a Dice of 0.85 or better is reached on 153 of 200 scans for the full model, 148 of 200 for the narrow one and 137 of 200 for the tuned U-Net, and a Dice of 0.70 or better is reached on 178 of 200 for both of the proposed models against 175 for the benchmark.
+
+Table 7 Task 2 Dice by tumour type (the submitted narrow model, 200 scans)
 
 | Tumour type | Dice | n |
 |---|---|---|
-| Meningioma | 0.9350 | 78 |
-| Pituitary | 0.8666 | 64 |
-| Glioma | 0.7860 | 58 |
+| Meningioma | 0.9309 | 78 |
+| Pituitary | 0.8561 | 64 |
+| Glioma | 0.7494 | 58 |
 
-The same ordering as Task 1 appears again, and the deep model is the better of the two on gliomas (0.7860 against 0.7454) because it learns appearance cues that a hand-designed feature set does not capture, whilst Task 1 keeps the better boundary overall. Two of the glioma scans score a Dice of exactly 0.000 and they are examined in Section 4.7 because what they show matters more than what they cost, excluding those two the figures become 0.8787 pruned, 0.8780 unpruned and 0.8436 for the U-Net, but every headline number quoted above is the full 200 scan figure as the brief specifies and the exclusion is reported only to show that the two cases account for under one Dice point and that they affect the benchmark equally.
+The same ordering as Task 1 appears again, meningiomas segment easily and gliomas do not, and here the narrow model and the classical method have almost swapped places on the hardest type, 0.7494 against Task 1's 0.7454, where the full model managed 0.7857. That is where the parameter limit is actually paid for: the capacity that was removed was capacity the model was using on the infiltrative tumours, and it barely shows on the compact ones. Four of the 200 scans score a Dice of exactly 0.000 and they are examined in Section 4.7 because what they show matters more than what they cost, excluding them the figures become 0.8718 narrow, 0.8780 full and 0.8566 for the U-Net, but every headline number quoted above is the full 200 scan figure as the brief specifies and the exclusion is reported only to show what those four cases are worth.
 
-[FIG] task2/outputs/qualitative/00_proposed.png | Figure 2 Task 2 innovation model on a meningioma, green: ground truth, red: prediction
+[FIG] task2/outputs/qualitative/00_proposed.png | Figure 7 Task 2 innovation model on a meningioma, green: ground truth, red: prediction
 
 ## 3.3 Model compression (pruning)
 
@@ -189,36 +212,54 @@ Table 8 One-shot pruning ablation, no fine-tuning
 
 Two separate effects are visible in that table. The first is stale BatchNorm statistics, when 40% of a convolution's input channels vanish each surviving output channel loses about 40% of the contributions that formed it, so its pre-activation distribution shifts and the inherited moving mean and moving variance no longer describe it, cascaded through nine blocks the output collapses entirely. That one is cheap to fix and the recalibration column shows how much of it comes back at the lower ratios, using 100 forward-only batches with no gradient updates at all. The second effect is joint function damage, which is what the recalibration cannot fix, at a ratio of 0.40 the recalibrated score is still only 0.2147 because the surviving filters were co-adapted with the ones that were removed and no amount of re-estimating statistics brings that back.
 
-The final method therefore removes about 12% of the remaining channels per round over 4 rounds, with a BatchNorm recalibration pass and a 3 epoch recovery after every cut, followed by a 12 epoch fine-tune once the target width is reached.
+[FIG] report_figures/fig_task2_prune.png | Figure 8 task2/prune.py, the six rounds and the decision at the end of them that sent the widths to a from-scratch retrain
 
-Table 9 Iterative pruning, four rounds
+The method therefore removes about 12% of the remaining channels per round, with a BatchNorm recalibration pass and a 3 epoch recovery after every cut, followed by a 12 epoch fine-tune once the target width is reached. How many rounds are needed follows from how much has to come out, and that is set by the two million parameter limit rather than chosen freely. Parameters scale with the square of the channel widths, so the 8.84 M model needs roughly 55% of its channels removed to get underneath the limit, and searching the width rounding gives 0.55 over six rounds as the closest fit that still clears it: widths 8, 32, 60, 116, 232 and 1,963,474 parameters, where 0.536 lands on 2,018,714 and is over.
+
+Table 9 Iterative pruning to 55%, six rounds
 
 | Round | Widths | After transfer | After BN recalibration | After 3 epochs |
 |---|---|---|---|---|
-| 1 | 28, 56, 112, 224, 452 | 0.4683 | 0.8065 | 0.8676 |
-| 2 | 24, 48, 100, 196, 396 | 0.4972 | 0.8155 | 0.8657 |
-| 3 | 20, 44, 88, 172, 348 | 0.2369 | 0.7628 | 0.8651 |
-| 4 | 16, 40, 76, 152, 308 | 0.4734 | 0.7301 | 0.8628 |
+| 1 | 28, 56, 112, 224, 448 | 0.4661 | 0.8054 | 0.8688 |
+| 2 | 24, 48, 100, 196, 392 | 0.4646 | 0.8179 | 0.8631 |
+| 3 | 20, 44, 88, 172, 344 | 0.2678 | 0.7752 | 0.8650 |
+| 4 | 16, 40, 76, 152, 300 | 0.3324 | 0.7814 | 0.8649 |
+| 5 | 12, 36, 68, 132, 264 | 0.0844 | 0.1824 | 0.8515 |
+| 6 | 8, 32, 60, 116, 232 | 0.0769 | 0.2903 | 0.5342 |
 
-The final fine-tune brings the validation Dice to 0.8712, which is above the unpruned model's 0.8697, and the whole pruning stage costs 33.2 minutes. The network went from 8.84 M parameters, 14.93 GFLOPs and 34.06 MB to 3.28 M parameters, 5.08 GFLOPs and 12.86 MB, so 63% of the parameters and 66% of the arithmetic were removed at no accuracy cost whatsoever. The honest reading of the round-by-round numbers is that the recovery epochs are doing most of the work and the recalibration is what keeps the model from collapsing far enough that the recovery cannot climb back, taking either of them out of the recipe breaks it.
+That table is the most informative result in this chapter, because it shows the point at which the method stops working. Through four rounds it behaves exactly as it is supposed to, every cut is recovered to about 0.865 and the recalibration does most of the rescuing. At round five the recalibration stops helping, 0.1824 where the earlier rounds recovered to 0.78 and above, and the three recovery epochs only just drag it back. At round six neither works, recovery reaches 0.5342, and a 12 epoch fine-tune afterwards lifts it only to 0.5916. Removing 40% of the channels is repairable and removing 55% is not, and the boundary between the two is somewhere between the fourth and the fifth cut.
+
+A second measurement is needed to read those numbers properly, because the metric printed during training is a soft Dice computed on the raw probabilities rather than on the thresholded mask. The model that ends at 0.5916 on that metric scores 0.8503 on the held-out test set once its mask is thresholded at 0.5 and scored per image, which is the metric this report uses everywhere else. It is not producing a wrong mask, it is producing a barely confident one: its mean maximum probability across the validation set is 0.517, so the whole prediction sits a hair above the threshold, where the retrained model sits at 0.969. A model in that state is one threshold adjustment away from returning nothing at all, and that is a worse property for a clinical tool than the 0.4 Dice points between the two versions would suggest.
+
+The fix is the one Liu et al. (2019) describe, and it is the reason their paper is in the literature review rather than only in the method. What pruning actually produced here is a good narrow architecture; the weights it carried out of the process are damaged past repair. Training that same architecture from a fresh initialisation, under exactly the settings the full model used, gives 0.8619 validation Dice in 23.6 minutes and 0.8543 on the test set, against 0.8503 for the inherited version and 0.8692 for the full model. The pruning stage still earns its place, it is what selected the widths and the L1 ranking is why they are 8, 32, 60, 116, 232 rather than a uniform ladder, but what gets submitted is the retrained network.
+
+Table 10 The three routes to a network inside the parameter limit
+
+| Version | Parameters | GFLOPs | Size | Test Dice | HD95 |
+|---|---|---|---|---|---|
+| Full model, no pruning | 8,838,017 | 14.93 | 34.06 MB | 0.8692 | 14.49 |
+| Pruned 55%, weights inherited | 1,963,474 | 2.79 | 7.82 MB | 0.8503 | 17.78 |
+| Pruned widths, retrained from scratch | 1,963,474 | 2.79 | 7.82 MB | 0.8543 | 13.93 |
+
+So the final network is 78% smaller in parameters and 81% cheaper in arithmetic than the model it came from, for 1.5 Dice points, and it has a better boundary than either of the other two.
 
 # 4. Discussion
 
 ## 4.1 Interpretation
 
-Task 1 works because the user's box removes the localisation problem completely and the classifier is then only being asked to solve a much easier boundary problem inside a small region, which is also why its HD95 is the best number in this chapter. It fails when the lesion is infiltrative and the intensity contrast against the surrounding tissue is weak, which is the glioma case. Task 2 works because the self-attention at the bottleneck gives the network the global comparison a convolution cannot make and the dual gates suppress the irrelevant parts of the skip connections before they reach the decoder, and the small dataset is not the binding constraint here that it was on smaller datasets, 3,933 training slices is enough for a model of this size to reach the high-0.86 range.
+Task 1 works because the user's box removes the localisation problem completely and the classifier is then only being asked to solve a much easier boundary problem inside a small region, which is also why its HD95 is the best number in this chapter. It fails when the lesion is infiltrative and the intensity contrast against the surrounding tissue is weak, which is the glioma case. Task 2 works because the self-attention at the bottleneck gives the network the global comparison a convolution cannot make and the dual gates suppress the irrelevant parts of the skip connections before they reach the decoder, and the small dataset is not the binding constraint here that it was on smaller datasets, 3,933 training slices is enough for a model of this size to reach the mid-0.85 range at under two million parameters. What the parameter limit costs is visible by tumour type rather than in the headline, the narrow model gives up almost nothing on meningiomas (0.9309 against 0.9274) and loses most of its ground on gliomas (0.7494 against 0.7857), which says the capacity that was removed was being spent on the infiltrative margins rather than on the easy compact ones.
 
 ## 4.2 Strengths and weaknesses
 
-Task 1 needs no GPU at any stage, trains in 36 seconds, ships in 17.85 MB and its failures are interpretable because the dominant feature is the user's own box, but it charges the clinician one interaction on every single case and it is the weaker of the two on gliomas. Task 2 needs no interaction at all and is the better model on the hardest tumour type, but it needs a GPU to train, it is the more expensive of the two to recalibrate, and it fails silently, which Section 4.7 argues is the most important single finding in this chapter. On FLOPs, hardware, parameters and model size the pruned innovation model is the strongest of the three models tested, 5.08 GFLOPs, 3.28 M parameters and 12.86 MB with inference that runs on CPU, and it is the accuracy leader at the same time, which is not the usual trade.
+Task 1 needs no GPU at any stage, trains in 36 seconds, ships in 17.85 MB and its failures are interpretable because the dominant feature is the user's own box, but it charges the clinician one interaction on every single case and it is the weaker of the two on gliomas. Task 2 needs no interaction at all and is the better model on the hardest tumour type, but it needs a GPU to train, it is the more expensive of the two to recalibrate, and it fails silently, which Section 4.7 argues is the most important single finding in this chapter. On FLOPs, hardware, parameters and model size the narrow innovation model is the strongest of everything tested, 2.79 GFLOPs, 1.96 M parameters and 7.82 MB with inference that runs on CPU, and it still beats the tuned benchmark on every accuracy metric, which is not the usual trade. Its weakness is the one the table above names, it is 1.5 Dice points behind the model it was cut down from and most of that gap is on gliomas.
 
 ## 4.3 Comparison with literature
 
 The comparison in this chapter is experimental for the four unsupervised baselines and for the PSO tuned U-Net benchmark, those are reproduced experiments run under one shared recipe on the same data. The comparisons with published models below are literature-based claims, they are not reimplementations and should be read as such.
 
-The state of the art comparison target is nnU-Net (Isensee et al., 2021), the self-configuring framework that is still the default benchmark in medical image segmentation. The comparison that matters is not Dice, since nnU-Net's reported figures come from a different protocol on different datasets, it is what the two designs spend to get there. nnU-Net's design philosophy is to configure itself from the dataset fingerprint and then spend heavily on training compute and extensive augmentation, its standard schedule is 1,000 epochs and it is normally trained on a datacentre GPU over a period measured in days, whereas the model in Section 3.1 trains for 40 epochs in roughly 50 minutes on the integrated GPU of a laptop and then has two thirds of its arithmetic removed before deployment. The pruned model is 3.28 M parameters against the tens of millions typical of the transformer based models that dominate current leaderboards, TransUNet and Swin-UNet are both reported in the literature as substantially larger than this (Chen et al., 2021; Cao et al., 2022), and the BRISC paper's own Swin-based hybrid (Fateh et al., 2025) sits in the same class. The claim being made here is deliberately narrow, this work does not beat those models on accuracy and does not claim to, what it shows is accuracy per FLOP on one dataset using hardware that a district hospital could actually buy.
+The state of the art comparison target is nnU-Net (Isensee et al., 2021), the self-configuring framework that is still the default benchmark in medical image segmentation. The comparison that matters is not Dice, since nnU-Net's reported figures come from a different protocol on different datasets, it is what the two designs spend to get there. nnU-Net's design philosophy is to configure itself from the dataset fingerprint and then spend heavily on training compute and extensive augmentation, its standard schedule is 1,000 epochs and it is normally trained on a datacentre GPU over a period measured in days, whereas the model in Section 3.1 trains for 40 epochs in roughly 50 minutes on the integrated GPU of a laptop and the network that is actually deployed is retrained at the pruned widths in 23.6 minutes. The submitted model is 1.96 M parameters against the tens of millions typical of the transformer based models that dominate current leaderboards, TransUNet and Swin-UNet are both reported in the literature as substantially larger than this (Chen et al., 2021; Cao et al., 2022), and the BRISC paper's own Swin-based hybrid (Fateh et al., 2025) sits in the same class. The claim being made here is deliberately narrow, this work does not beat those models on accuracy and does not claim to, what it shows is accuracy per FLOP on one dataset using hardware that a district hospital could actually buy.
 
-On training data required, the deep model reaches 0.8699 Dice from 3,933 annotated slices, Task 1 reaches 0.8740 from 400 scans in 36 seconds of training. For a centre that cannot produce thousands of expert annotations the semi-automated route is not merely the cheaper option, it is the only feasible one, and that is a stronger argument for Task 1 than any of its metrics.
+On training data required, the deep model reaches 0.8543 Dice from 3,933 annotated slices, Task 1 reaches 0.8740 from 400 scans in 36 seconds of training. For a centre that cannot produce thousands of expert annotations the semi-automated route is not merely the cheaper option, it is the only feasible one, and that is a stronger argument for Task 1 than any of its metrics.
 
 ## 4.4 Deployment
 
@@ -226,7 +267,7 @@ Both methods are decision support and neither is a replacement for the radiologi
 
 ## 4.5 Latency and FLOPs basis
 
-Latency is the mean of repeated forward passes at 192×192 with a batch size of 1 on the M1 Max integrated GPU for Task 2, and at 512×512 on CPU for Task 1. FLOPs are theoretical and computed from the inference graph, and the reduced FLOPs after structural pruning are theoretical in the same way. This needs an honest caveat, the measured inference time only improved from 46.8 ms to 41.2 ms, which is 12%, despite the FLOP count dropping by 66%. At a batch size of 1 on a GPU the run is dominated by kernel launch overhead rather than by arithmetic, so the FLOP reduction does not show up proportionally in the wall clock. The FLOP reduction is real and it does translate into lower energy per inference and into a genuine speedup on CPU and edge hardware, but a 3× speedup claim would not be supported by these measurements and is not made.
+Latency is the mean of repeated forward passes at 192×192 with a batch size of 1 on the M1 Max integrated GPU for Task 2, and at 512×512 on CPU for Task 1. FLOPs are theoretical and computed from the inference graph, and the reduced FLOPs after structural pruning are theoretical in the same way. This needs an honest caveat, the measured inference time only improved from 40.6 ms to 33.9 ms, which is 17%, despite the FLOP count dropping by 81%. At a batch size of 1 on a GPU the run is dominated by kernel launch overhead rather than by arithmetic, so the FLOP reduction does not show up proportionally in the wall clock. The FLOP reduction is real and it does translate into lower energy per inference and into a genuine speedup on CPU and edge hardware, but a 3× speedup claim would not be supported by these measurements and is not made.
 
 ## 4.6 Carbon footprint
 
@@ -237,21 +278,23 @@ Table 10 Estimated energy and carbon
 | Activity | Time | Energy | CO₂e |
 |---|---|---|---|
 | Task 1 training | 36 s at 20 W | 0.0002 kWh | about 0.11 g |
-| Task 2 full pipeline (PSO, both trainings, pruning) | 166.4 min at 40 W | 0.111 kWh | about 61 g |
+| Task 2 full pipeline (PSO, all trainings, pruning, narrow retrain) | 185.6 min at 40 W | 0.124 kWh | about 68 g |
 | Task 1 inference, per scan | 63 ms at 20 W | 3.5×10⁻⁷ kWh | about 0.19 mg |
-| Task 2 inference, per scan | 41.2 ms at 40 W | 4.6×10⁻⁷ kWh | about 0.25 mg |
+| Task 2 inference, per scan | 33.9 ms at 40 W | 3.8×10⁻⁷ kWh | about 0.21 mg |
 
-The whole Task 2 development pipeline, which is the PSO search, both final trainings and the pruning stage together, comes to roughly the carbon cost of boiling a kettle twice. That is a direct consequence of two deliberate choices, training on integrated laptop hardware instead of a datacentre GPU, and pruning the model before it is deployed rather than shipping the wide one.
+The whole Task 2 development pipeline, which is the PSO search, the trainings, the six pruning rounds and the narrow retrain together, comes to roughly the carbon cost of boiling a kettle twice. That is a direct consequence of two deliberate choices, training on integrated laptop hardware instead of a datacentre GPU, and pruning the model before it is deployed rather than shipping the wide one.
 
-The per-inference numbers are worth reading carefully because they do not say what a reader might expect. Task 1 is the cheaper of the two per scan (0.19 mg against 0.25 mg) even though it runs on CPU, because 63 ms at 20 W is less energy than 41 ms at 40 W, and Task 1's training cost is negligible next to Task 2's 0.111 kWh. So on this dataset there is no volume at which Task 2 becomes the lower carbon option, Task 1 is lower in both training and inference, and what Task 2 actually buys is the removal of the clinician's interaction rather than an energy saving. That is a different conclusion from the one that holds when the classical pipeline is slow, and it is stated here because the numbers say so rather than because it is the flattering result for the deep model.
+The per-inference numbers are worth reading carefully because they do not say what a reader might expect. Task 1 is the cheaper of the two per scan (0.19 mg against 0.21 mg) even though it runs on CPU, because 63 ms at 20 W is a little less energy than 34 ms at 40 W, and Task 1's training cost is negligible next to Task 2's 0.111 kWh. So on this dataset there is no volume at which Task 2 becomes the lower carbon option, Task 1 is lower in both training and inference, and what Task 2 actually buys is the removal of the clinician's interaction rather than an energy saving. That is a different conclusion from the one that holds when the classical pipeline is slow, and it is stated here because the numbers say so rather than because it is the flattering result for the deep model.
 
-The optimisation techniques applied to reduce the footprint were: structured channel pruning, which removed 66% of the FLOPs at zero accuracy cost so every inference the system ever runs costs a third of what it otherwise would; Random Forest compression in Task 1, 81% smaller for a 0.09% Dice loss; a reduced working resolution of 192×192 rather than 512×512 for training, which cuts the training cost by roughly seven times; early stopping and learning rate scheduling so that training halts when the validation Dice plateaus instead of running a fixed long schedule; and keeping inference CPU-feasible so that no accelerator hardware has to be provisioned per deployment site. Unstructured magnitude pruning was deliberately not used for the FLOP claim, since it would only have reduced storage, and no saving is claimed from it.
+The optimisation techniques applied to reduce the footprint were: structured channel pruning, which removed 81% of the FLOPs for 1.5 Dice points, so every inference the system ever runs costs a fifth of what it otherwise would; Random Forest compression in Task 1, 81% smaller for a 0.09% Dice loss; a reduced working resolution of 192×192 rather than 512×512 for training, which cuts the training cost by roughly seven times; early stopping and learning rate scheduling so that training halts when the validation Dice plateaus instead of running a fixed long schedule; and keeping inference CPU-feasible so that no accelerator hardware has to be provisioned per deployment site. Unstructured magnitude pruning was deliberately not used for the FLOP claim, since it would only have reduced storage, and no saving is claimed from it.
 
 ## 4.7 Silent failure, the most important limitation
 
-Two glioma scans score a Dice of exactly 0.000 with the automatic model, test_00011 which is a 314 pixel lesion covering 0.12% of the frame, and test_00045 which is a large and visually obvious 12,613 pixel tumour. The obvious explanation is that the model trains at 192×192 and the small lesion simply disappears at that resolution, so the two cases were re-run at 192, 256, 320 and 384 pixel input by loading the same weights into the architecture rebuilt at each size.
+Four of the 200 scans score a Dice of exactly 0.000 with the submitted narrow model, and two of them fail for the full model as well: test_00011, a 314 pixel lesion covering 0.12% of the frame, and test_00045, a large and visually obvious 12,613 pixel tumour. The narrow model adds two more, test_00083 and test_00910, so the silent failure rate goes from 1% to 2% when the parameter limit is applied, which is a cost of the limit that the Dice average hides and which is arguably more important than the 1.5 points it takes off the mean.
 
-Table 11 The two failures against input resolution
+The obvious explanation for the first two is that the model trains at 192×192 and a small lesion simply disappears at that resolution, so they were re-run at 192, 256, 320 and 384 pixel input by loading the full model's weights into the architecture rebuilt at each size.
+
+Table 11 The two failures against input resolution (full model)
 
 | Input size | test_00011 | test_00045 | 4 control gliomas |
 |---|---|---|---|
@@ -260,11 +303,24 @@ Table 11 The two failures against input resolution
 | 320 | 0.000 | 0.000 | 0.837 |
 | 384 | 0.095 | 0.000 | 0.613 |
 
-Resolution is therefore not the cause, both stay at zero whilst four control gliomas that score 0.963 at the trained size degrade steadily as the input moves away from what the model was trained on. The failure mode is confident mislocalisation, on test_00011 the model emits 5,092 pixels at a probability of 0.999 in an entirely different structure, and a failure caused by a resolution limit would instead produce weak scattered low-confidence output. On test_00045 the pruned model returns an empty mask with a maximum probability of 0.118. The caveat is that the model was trained at 192 px so inference at the larger sizes is out of distribution, which cannot rule out that a model trained at 384 px would handle these two cases.
+Resolution is therefore not the cause, both stay at zero whilst four control gliomas that score 0.963 at the trained size degrade steadily as the input moves away from what the model was trained on. The caveat is that the model was trained at 192 px so inference at the larger sizes is out of distribution, which cannot rule out that a model trained at 384 px would handle these two cases.
+
+The narrow model fails on the same four scans in two different ways, and the distinction matters clinically far more than the shared Dice of zero does:
+
+Table 12 How the submitted model fails on its four zero-Dice scans
+
+| Scan | Maximum probability | Pixels above 0.5 | True lesion | What it does |
+|---|---|---|---|---|
+| test_00011 | 0.996 | 851 | 314 | confident, and in the wrong structure |
+| test_00083 | 0.896 | 27 | 2,678 | confident about 27 pixels of a 2,678 pixel tumour |
+| test_00045 | 0.014 | 0 | 12,613 | empty mask, and it knows nothing is there |
+| test_00910 | 0.009 | 0 | 2,084 | empty mask |
+
+The two empty ones are the safe kind of failure, a mask that is not drawn is a mask a clinician will notice is missing, and the maximum probability of 0.014 is a usable signal that the model has nothing to offer on that scan. The first two are the dangerous kind, a confident contour in the wrong place looks exactly like a correct one at a glance. That distinction is the argument for the confidence view in the group GUI, since a probability map separates the two cases and a thresholded mask does not.
 
 The clinical significance of this is severe and it is the reason it is reported here rather than buried, the automatic model fails silently. It does not flag any uncertainty, it returns either an empty mask or a confidently wrong one, and a clinician reviewing a batch of contours could plausibly miss it. This is the single strongest argument for keeping the semi-automated method as a fallback rather than treating the two tasks as competitors, and it is an argument that comes out of a measurement rather than an assertion.
 
-[FIG] task2/outputs/failure_cases.png | Figure 3 The two silent failures, green: ground truth, red: proposed model, magenta: pruned model. On the left the prediction is confident and in the wrong structure entirely
+[FIG] task2/outputs/failure_cases.png | Figure 9 The two silent failures shared by every version of the model, green: ground truth, red: the full model, magenta: the pruned one. On the left the prediction is confident and in the wrong structure entirely
 
 ## 4.8 Limitations
 
@@ -293,11 +349,11 @@ Table 13 Whole-life cost, Task 2 deep learning system
 |---|---|---|
 | Dataset preparation | Higher, 3,933 annotated training scans. Acquiring that from scratch is a multi-month annotation project. | measured |
 | Software development | About 3 to 4 person-weeks including the PSO search and the pruning machinery. | estimate |
-| Training compute | 49.8 min for the proposed model, 30.4 min for the PSO search, 53.0 min for the benchmark and 33.2 min for pruning, 166.4 min in total on one laptop GPU. | measured |
+| Training compute | 49.8 min for the full model, 30.4 min for the PSO search, 53.0 min for the benchmark, 28.8 min for the six pruning rounds and 23.6 min to retrain at the pruned widths, 185.6 min in total on one laptop GPU. | measured |
 | Hardware | A GPU is strongly preferred for training, inference runs on CPU. | measured |
-| File size | 12.86 MB pruned, 34.06 MB unpruned. | measured |
+| File size | 7.82 MB submitted, 34.06 MB before pruning. | measured |
 | User training | Minimal, there is no interaction. What training is needed is in interpreting the output, in particular recognising the silent failures in Section 4.7. | judgement |
-| Recalibration | Expensive, a new scanner or protocol needs retraining and re-pruning, roughly 83 minutes plus validation. Not a same-day task. | measured |
+| Recalibration | Expensive, a new scanner or protocol needs the full model retrained, re-pruned and then retrained narrow, roughly 100 minutes plus validation. Not a same-day task. | measured |
 | Long-term support | Higher, TensorFlow 2.13 pins NumPy below 2 and the dependency set is brittle, it will need periodic migration work. | measured during development |
 
 The asymmetry between those two tables is the finding, not the individual rows. Task 1 costs almost nothing to build, to retrain or to maintain but it charges the clinician a small interaction cost on every case forever, Task 2 costs far more up front and far more to maintain but it is free at the point of use. Over a long deployment at a high case volume Task 2 amortises better, and for a small centre or one without a stable annotation pipeline Task 1 is the more rational investment, which is a deployment decision that depends on the site rather than on the metrics.
@@ -318,7 +374,7 @@ That gives the throughput of the automatic model with a human-verifiable safety 
 
 # 7. Societal and cultural impact
 
-Brain tumour outcomes depend heavily on timely and accurate imaging assessment, and radiologist availability varies enormously both between countries and within them. A 12.86 MB model that runs on a laptop CPU can be deployed in a district hospital or a lower-resource setting, a model that needs a GPU cluster cannot, so the efficiency work in this chapter is an equity-of-access argument as much as an environmental one, reducing the hardware requirement widens who is able to use the tool at all.
+Brain tumour outcomes depend heavily on timely and accurate imaging assessment, and radiologist availability varies enormously both between countries and within them. A 7.82 MB model that runs on a laptop CPU can be deployed in a district hospital or a lower-resource setting, a model that needs a GPU cluster cannot, so the efficiency work in this chapter is an equity-of-access argument as much as an environmental one, reducing the hardware requirement widens who is able to use the tool at all.
 
 The consistency argument is the one most specific to this disease. Manual outlining varies between observers and within the same observer over time, and because response assessment compares volumes across months that variation feeds directly into whether a treatment is judged to be working. A deterministic algorithm gives the same contour for the same input every time, which is valuable even in the cases where it is slightly less accurate than the best available human, because what longitudinal comparison actually requires is reproducibility.
 
@@ -330,7 +386,11 @@ Finally there is a language and accessibility dimension that the group GUI addre
 
 # 8. Conclusion
 
-A semi-automated Random Forest method driven by a single loose bounding box reached a Dice of 0.8740 on 50 unseen BRISC scans, beating the best unsupervised comparator by 9.3 Dice points and reducing HD95 by 29%, whilst training in 36 seconds on a laptop CPU and shipping in 17.85 MB. The proposed MHA-ResUNet reached 0.8692 Dice on 200 unseen scans against 0.8352 for a PSO tuned conventional U-Net, with the boundary error cut by 44%, and iterative structural pruning then removed 66% of the FLOPs and 63% of the parameters at no accuracy cost at all, the pruned model scoring 0.8699 and beating the tuned U-Net on every accuracy metric whilst using 33% fewer FLOPs. The pruning recipe is the part worth carrying forward, one-shot pruning at the same ratio collapses the network to 0.0167 Dice and it is the BatchNorm recalibration together with the per-round recovery that makes an aggressive ratio survivable. The most important finding is not a metric, it is that the automatic model fails silently on about 1% of cases, returning an empty or confidently misplaced mask with no uncertainty signal, which is the strongest argument for keeping the semi-automated method as a fallback rather than treating the two approaches as alternatives to choose between.
+A semi-automated Random Forest method driven by a single loose bounding box reached a Dice of 0.8740 on 50 unseen BRISC scans, beating the best unsupervised comparator by 9.3 Dice points and reducing HD95 by 29%, whilst training in 36 seconds on a laptop CPU and shipping in 17.85 MB. The proposed MHA-ResUNet reached 0.8692 Dice on 200 unseen scans against 0.8352 for a PSO tuned conventional U-Net, with the boundary error cut by 44%. Bringing it inside the module's two million parameter limit needed 55% of its channels removed, and the network that is submitted has 1,963,474 parameters, 2.79 GFLOPs and 7.82 MB, scores 0.8543 Dice and has the best boundary of every model tested at 13.93 pixels, beating the tuned benchmark on every accuracy metric whilst using 63% fewer FLOPs and 55% fewer parameters than it.
+
+How that model was reached is the finding worth carrying forward rather than the number itself. Pruning to 40% is repairable and pruning to 55% is not, the sixth round recovers only to 0.5342 and a fine-tune afterwards reaches 0.5916 on the soft training metric, leaving a network whose mean maximum probability is 0.517 and which is therefore one threshold away from predicting nothing. Retraining the same pruned architecture from a fresh initialisation, as Liu et al. (2019) argue for, gives a better model in 23.6 minutes: pruning chose the widths, training from scratch supplied the weights.
+
+The most important finding is still not a metric, it is that the automatic model fails silently, on 2% of cases at the narrow width against 1% before it, returning either an empty mask or a confidently misplaced one. Two of the four are the safe kind and report a maximum probability under 0.02; the other two are confident and wrong. That is the strongest argument for keeping the semi-automated method as a fallback rather than treating the two approaches as alternatives to choose between, and it is also the argument for showing a probability map in the interface rather than only a mask.
 
 # References
 

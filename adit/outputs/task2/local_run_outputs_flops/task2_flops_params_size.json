@@ -1,0 +1,21 @@
+{
+  "baseline": {
+    "params": 7768929,
+    "flops_g": 27.363639296,
+    "size_mb": 29.636112213134766,
+    "input_size": 256
+  },
+  "innovation_unpruned": {
+    "params": 27106752,
+    "flops_g": 28.406362816,
+    "size_mb": 103.40405654907227,
+    "input_size": 320
+  },
+  "innovation_pruned": {
+    "params": 27106752,
+    "flops_g": 28.406362816,
+    "size_mb": 103.40405654907227,
+    "input_size": 320,
+    "note": "identical architecture to unpruned -- TFMOT unstructured pruning does not reduce FLOPs/params/size"
+  }
+}

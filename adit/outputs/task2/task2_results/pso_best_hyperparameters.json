@@ -1,0 +1,9 @@
+{
+  "best_hyperparameters": {
+    "base_filters": 32,
+    "activation": "relu",
+    "dropout_rate": 0.4,
+    "learning_rate": 0.003000000000000001
+  },
+  "best_proxy_val_dice": 0.1420665979385376
+}

@@ -46,3 +46,10 @@ previous assignment.docx
 
 # Word's lock files, created while a document is open.
 ~$*
+
+# Adit's copy of the Figshare brain tumour set, on the same rule as BRISC and
+# BUSI above: a public dataset that is not ours to redistribute, and 331 MB of
+# it.  Her results, her share folder and her notebook do go in, so the GUI can
+# still run her Task 2 from a fresh clone.
+adit/images/
+adit/masks/

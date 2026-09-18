@@ -1,0 +1,9 @@
+model,metric,value,sd
+proposed,Dice (per image),0.8047514286777857,
+proposed,IoU (per image),0.7154185183109741,
+proposed,HD95 (px),25.899637009502257,
+proposed,Accuracy (per image),0.9938863118489584,
+proposed,Tunable parameters,11809068,
+proposed,Model size (MB),45.04802322387695,
+proposed,"FLOPs (measured, 224x224, b1)",10115403200.0,
+proposed,"Latency CPU (ms/img, b1)",67.64948744375735,

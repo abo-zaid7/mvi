@@ -1,0 +1,16 @@
+{
+  "best_hyperparameters": {
+    "decoder_filters": [
+      40,
+      80,
+      160,
+      320
+    ],
+    "decoder_dropout": 0.3132482147560339,
+    "learning_rate": 0.00037906763877976435,
+    "num_heads": 2,
+    "key_dim": 32
+  },
+  "best_proxy_val_dice": 0.600125253200531,
+  "tuning_time_min": 83.06794451475143
+}

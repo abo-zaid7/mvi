@@ -112,7 +112,8 @@ def add_figure(document, path, caption):
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     wide = path.endswith(("fig_layout.png", "fig_arabic.jpg",
                           "fig_credits.jpg", "fig_validation.jpg",
-                          "fig_views.png", "fig_views_afnan.png", "fig_views_amman.png",
+                          "fig_views.png", "fig_views_afnan.png", "fig_views_amman.png", "fig_views_adit.png",
+                          "fig_adit_task1.jpg", "fig_adit_task2.jpg",
                           "fig_afnan_task1.jpg", "fig_afnan_task2.jpg",
                           "fig_amman_task1.jpg", "fig_amman_task2.jpg"))
     paragraph.add_run().add_picture(path, width=Inches(6.0 if wide else 4.6))
