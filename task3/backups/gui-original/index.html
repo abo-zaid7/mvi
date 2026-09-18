@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<!--
+  Task 3 - group GUI for the Task 1 and Task 2 segmentation models.
+
+  Every visible string carries a data-i18n attribute instead of being written in
+  the markup, so switching language rewrites the whole interface from
+  static/js/i18n.js.  Titles and aria-labels use data-i18n-title and
+  data-i18n-aria for the same reason - a translated interface that leaves its
+  tooltips and screen reader labels in English is only half translated.
+-->
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brain Tumour Segmentation - Machine Vision Group Assignment</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- Announcements for screen readers; visually hidden but always current. -->
+<div id="live-region" class="sr-only" role="status" aria-live="polite"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M16 6c-4 3-6 6-6 10a6 6 0 0 0 12 0c0-4-2-7-6-10z" fill="currentColor" opacity=".35"/>
+      <circle cx="16" cy="17" r="4" fill="currentColor"/>
+    </svg>
+    <div class="brand-text">
+      <h1 data-i18n="app.title">Brain Tumour Segmentation</h1>
+      <p data-i18n="app.subtitle">Task 1 and Task 2 models, one interface</p>
+    </div>
+  </div>
+
+  <div class="topbar-tools">
+    <label class="tool-group">
+      <span class="tool-label" data-i18n="header.language">Language</span>
+      <select id="language" aria-label="Language" data-i18n-aria="header.language">
+        <option value="en">English</option>
+        <option value="ms">Bahasa Melayu</option>
+        <option value="ar">العربية</option>
+      </select>
+    </label>
+
+    <!-- Line-art SVG rather than emoji: emoji render differently on every
+         platform and at every font size, and several of the obvious ones carry a
+         skin tone or a gender the interface has no business implying. -->
+    <button class="icon-button" id="toggle-sound" aria-pressed="true"
+            data-i18n-title="header.sound" title="Sound effects">
+      <svg class="ico" data-icon="sound-on" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M4 8h2.5L10 5v10L6.5 12H4z"/>
+        <path d="M13 7.5a3.5 3.5 0 0 1 0 5M15.2 5.3a6.5 6.5 0 0 1 0 9.4"
+              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <svg class="ico" data-icon="sound-off" viewBox="0 0 20 20" aria-hidden="true" hidden>
+        <path d="M4 8h2.5L10 5v10L6.5 12H4z"/>
+        <path d="M13 8l4 4M17 8l-4 4" fill="none" stroke="currentColor"
+              stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <button class="icon-button" id="toggle-speech" aria-pressed="false"
+            data-i18n-title="header.speech" title="Read metrics aloud">
+      <svg class="ico" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M10 2.5a2 2 0 0 1 2 2v5a2 2 0 0 1-4 0v-5a2 2 0 0 1 2-2z"/>
+        <path d="M5.5 9.2a4.5 4.5 0 0 0 9 0M10 13.7v3.3M7.5 17h5"
+              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <button class="icon-button" id="toggle-theme" aria-pressed="false"
+            data-i18n-title="header.theme" title="Light or dark theme">
+      <svg class="ico" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="3.6"/>
+        <path d="M10 1.6v2.2M10 16.2v2.2M1.6 10h2.2M16.2 10h2.2M4.1 4.1l1.6 1.6M14.3 14.3l1.6 1.6M15.9 4.1l-1.6 1.6M5.7 14.3l-1.6 1.6"
+              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <button class="text-button" id="open-settings"
+            data-i18n-title="header.settings" title="Display settings">
+      <svg class="ico" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 6h9M15 6h2M3 14h2M8 14h9" fill="none" stroke="currentColor"
+              stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="13.5" cy="6" r="2.1" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="6.5" cy="14" r="2.1" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+      <span data-i18n="header.settings.short">Display</span>
+    </button>
+
+    <button class="text-button" id="open-help"
+            data-i18n-title="header.help" title="How to use this">
+      <svg class="ico" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="7.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M7.9 7.6a2.2 2.2 0 1 1 3.2 2c-.7.5-1.1.9-1.1 1.8" fill="none"
+              stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="10" cy="14.2" r="0.95"/>
+      </svg>
+      <span data-i18n="header.help.short">Help</span>
+    </button>
+
+    <button class="text-button accent" id="open-credits"
+            data-i18n-title="header.credits" title="Group contributions">
+      <svg class="ico" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="7.3" cy="7" r="2.8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M2.2 16.4c0-2.8 2.3-4.6 5.1-4.6s5.1 1.8 5.1 4.6" fill="none"
+              stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M13.4 4.6a2.8 2.8 0 0 1 0 4.8M14.4 11.9c2.1.4 3.4 2 3.4 4.5"
+              fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <span data-i18n="header.credits.short">Credits</span>
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============================ left column ============================ -->
+  <section class="column left" aria-labelledby="setup-heading">
+    <h2 class="sr-only" id="setup-heading" data-i18n="a11y.setup">Set-up</h2>
+
+    <!-- A self-paced checklist: the four things that have to happen, in order.
+         It ticks itself off as the user works, so somebody using the tool alone
+         can see what is left without reading the manual. -->
+    <div class="panel steps-panel">
+      <ol class="steps" id="steps">
+        <li data-step="model"><span class="step-dot"></span><span data-i18n="steps.model">Load a model</span></li>
+        <li data-step="image"><span class="step-dot"></span><span data-i18n="steps.image">Choose a scan</span></li>
+        <li data-step="box"><span class="step-dot"></span><span data-i18n="steps.box">Mark the lesion</span></li>
+        <li data-step="run"><span class="step-dot"></span><span data-i18n="steps.run">Run the model</span></li>
+      </ol>
+    </div>
+
+    <!-- ---------------------------- models ---------------------------- -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3 data-i18n="models.title">Models</h3>
+        <span class="count" id="model-count"></span>
+      </div>
+
+      <div class="model-list" id="model-list" role="radiogroup"
+           aria-label="Available models" data-i18n-aria="models.title"></div>
+
+      <details class="custom-model">
+        <summary data-i18n="models.custom">Load another model file</summary>
+        <p class="hint" data-i18n="models.custom.hint">
+          A path inside the project folder. Use .joblib for a Task 1 forest,
+          .h5 for a Task 2 network, or .keras for one of the ultrasound models.
+        </p>
+        <div class="row">
+          <input type="text" id="custom-path" spellcheck="false"
+                 placeholder="task1/outputs/my_model.joblib"
+                 aria-label="Model file path" data-i18n-aria="models.custom.path">
+          <button class="button small" id="load-custom" data-i18n="models.load">Load</button>
+        </div>
+      </details>
+
+      <div class="spec-sheet" id="spec-sheet" hidden>
+        <h4 data-i18n="models.loaded">Loaded model</h4>
+        <dl id="spec-list"></dl>
+      </div>
+    </div>
+
+    <!-- ---------------------------- image input ---------------------------- -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3 data-i18n="images.title">Scan</h3>
+        <span class="count" id="image-count"></span>
+      </div>
+
+      <p class="hint" id="dataset-note"></p>
+
+      <label class="field">
+        <span data-i18n="images.filter">Show</span>
+        <select id="image-filter">
+          <option value="evaluated" data-i18n="images.filter.evaluated">The evaluated scans only</option>
+          <option value="all" data-i18n="images.filter.all">All test scans</option>
+          <option value="glioma" data-i18n="tumour.glioma" data-dataset="brisc">Glioma</option>
+          <option value="meningioma" data-i18n="tumour.meningioma" data-dataset="brisc">Meningioma</option>
+          <option value="pituitary" data-i18n="tumour.pituitary" data-dataset="brisc">Pituitary</option>
+          <option value="benign" data-i18n="tumour.benign" data-dataset="busi">Benign</option>
+          <option value="malignant" data-i18n="tumour.malignant" data-dataset="busi">Malignant</option>
+          <option value="normal" data-i18n="tumour.normal" data-dataset="busi">Normal</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span data-i18n="images.pick">Scan</span>
+        <select id="image-select" size="1"></select>
+      </label>
+
+      <div class="row tight">
+        <button class="button small" id="prev-image" data-i18n-title="images.prev" title="Previous scan">
+          <span aria-hidden="true">&#8249;</span>
+          <span data-i18n="images.prev.short">Prev</span>
+        </button>
+        <button class="button small" id="random-image" data-i18n="images.random">Random</button>
+        <button class="button small" id="next-image" data-i18n-title="images.next" title="Next scan">
+          <span data-i18n="images.next.short">Next</span>
+          <span aria-hidden="true">&#8250;</span>
+        </button>
+      </div>
+
+      <div class="upload-zone" id="upload-zone" tabindex="0" role="button"
+           aria-label="Upload your own scan" data-i18n-aria="images.upload">
+        <span aria-hidden="true" class="upload-icon">&#8679;</span>
+        <span data-i18n="images.upload">Drop your own scan here, or click to choose</span>
+        <span class="hint" data-i18n="images.upload.hint">
+          JPG, PNG, BMP or TIFF. Without a mask file the scan can still be
+          segmented, but there is nothing to score it against.
+        </span>
+        <input type="file" id="upload-image" accept=".jpg,.jpeg,.png,.bmp,.tif,.tiff" hidden>
+      </div>
+
+      <label class="field checkbox">
+        <input type="checkbox" id="upload-with-mask">
+        <span data-i18n="images.upload.mask">I also have the ground truth mask</span>
+      </label>
+      <input type="file" id="upload-mask" accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff" hidden>
+    </div>
+  </section>
+
+  <!-- ============================ centre column ============================ -->
+  <section class="column centre" aria-labelledby="viewer-heading">
+    <h2 class="sr-only" id="viewer-heading" data-i18n="a11y.viewer">Image viewer</h2>
+
+    <div class="panel viewer-panel">
+      <div class="view-tabs" role="tablist" aria-label="Views" data-i18n-aria="views.title">
+        <button role="tab" data-view="boundaries" aria-selected="true" class="active">
+          <span data-i18n="views.boundaries">Boundaries</span>
+        </button>
+        <button role="tab" data-view="truth" aria-selected="false">
+          <span data-i18n="views.truth">Ground truth</span>
+        </button>
+        <button role="tab" data-view="prediction" aria-selected="false">
+          <span data-i18n="views.prediction">Prediction</span>
+        </button>
+        <button role="tab" data-view="difference" aria-selected="false">
+          <span data-i18n="views.difference">Difference</span>
+        </button>
+        <button role="tab" data-view="heatmap" aria-selected="false">
+          <span data-i18n="views.heatmap">Confidence</span>
+        </button>
+        <button role="tab" data-view="scan" aria-selected="false">
+          <span data-i18n="views.scan">Scan only</span>
+        </button>
+      </div>
+
+      <p class="view-caption" id="view-caption" data-i18n="views.boundaries.caption">
+        Ground truth and predicted outlines on the same scan. Where the two lines
+        separate is the error the Dice score measures.
+      </p>
+
+      <!-- The stage holds the rendered PNG and a transparent canvas on top for
+           dragging the Task 1 box. -->
+      <div class="stage" id="stage">
+        <img id="viewer" alt="" data-i18n-alt="a11y.viewerImage">
+        <canvas id="box-canvas" width="512" height="512"
+                aria-label="Drag to mark the lesion" data-i18n-aria="a11y.boxCanvas"></canvas>
+
+        <div class="stage-empty" id="stage-empty">
+          <span aria-hidden="true" class="stage-empty-icon">&#9673;</span>
+          <p data-i18n="stage.empty">Load a model and pick a scan to begin</p>
+        </div>
+
+        <div class="stage-busy" id="stage-busy" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p data-i18n="stage.busy">Working…</p>
+        </div>
+      </div>
+
+      <div class="legend" id="legend">
+        <span class="legend-item"><i class="swatch truth"></i><span data-i18n="legend.truth">Ground truth</span></span>
+        <span class="legend-item"><i class="swatch prediction"></i><span data-i18n="legend.prediction">Model prediction</span></span>
+        <span class="legend-item diff-only"><i class="swatch missed"></i><span data-i18n="legend.missed">Missed</span></span>
+        <span class="legend-item diff-only"><i class="swatch extra"></i><span data-i18n="legend.extra">Over-segmented</span></span>
+        <span class="legend-item diff-only"><i class="swatch overlap"></i><span data-i18n="legend.overlap">Agreement</span></span>
+      </div>
+
+      <div class="viewer-controls">
+        <label class="field inline">
+          <span data-i18n="controls.opacity">Fill</span>
+          <input type="range" id="opacity" min="0" max="100" value="35">
+          <output id="opacity-value">35%</output>
+        </label>
+
+        <label class="field inline">
+          <span data-i18n="controls.thickness">Line</span>
+          <input type="range" id="thickness" min="1" max="6" value="2">
+          <output id="thickness-value">2</output>
+        </label>
+
+        <label class="field inline checkbox">
+          <input type="checkbox" id="show-box">
+          <span data-i18n="controls.showBox">Show box</span>
+        </label>
+
+        <button class="button small" id="export-view" data-i18n="controls.export">Export PNG</button>
+      </div>
+    </div>
+
+    <!-- The action bar sits directly under the image on purpose: for Task 1 the
+         box is drawn on the scan, so the button that acts on it belongs next to
+         the scan rather than in a side panel. -->
+    <div class="panel action-bar">
+      <div class="action-box task1-only" id="box-controls">
+        <div class="row tight">
+          <button class="button small" id="simulate-box" data-i18n="run.box.simulate"
+                  data-i18n-title="run.box.hint">Simulate box</button>
+          <button class="button small" id="clear-box" data-i18n="run.box.clear">Clear</button>
+        </div>
+        <p class="box-readout" id="box-readout" data-i18n="run.box.none">No box yet</p>
+      </div>
+
+      <div class="action-run">
+        <button class="button primary" id="run-model">
+          <span data-i18n="run.button">Segment this scan</span>
+          <kbd>R</kbd>
+        </button>
+        <p class="hint" id="run-hint" data-i18n="run.hint">Load a model to begin.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ right column ============================ -->
+  <section class="column right" aria-labelledby="results-heading">
+    <h2 class="sr-only" id="results-heading" data-i18n="a11y.results">Results</h2>
+
+    <div class="panel results-panel">
+      <div class="panel-head">
+        <h3 data-i18n="metrics.title">Metrics</h3>
+        <span class="badge" id="result-model"></span>
+      </div>
+
+      <div class="no-results" id="no-results">
+        <p data-i18n="metrics.none">No result yet. Run a model to see the scores.</p>
+      </div>
+
+      <div id="results" hidden>
+        <!-- Dice gets its own block because it is the number the marking
+             criteria are written against. -->
+        <div class="headline-metric">
+          <div class="headline-value">
+            <span id="dice-value">—</span>
+            <span class="headline-label" data-i18n="metrics.dice">Dice score</span>
+          </div>
+          <div class="meter" role="img" aria-label="Dice score" data-i18n-aria="metrics.dice">
+            <div class="meter-fill" id="dice-bar"></div>
+            <div class="meter-mark" style="inset-inline-start:85%"
+                 data-i18n-title="metrics.threshold" title="0.85 distinction threshold"></div>
+          </div>
+          <p class="verdict" id="dice-verdict"></p>
+        </div>
+
+        <dl class="metric-grid" id="metric-grid"></dl>
+
+        <div class="interpretation" id="interpretation"></div>
+
+        <button class="button small block" id="speak-metrics" data-i18n="metrics.speak">
+          Read the results aloud
+        </button>
+      </div>
+    </div>
+
+    <!-- Running several models on the same scan side by side is the quickest way
+         to show the pruned model matching the unpruned one, and Task 1 beating
+         Task 2 on the boundary. -->
+    <div class="panel" id="compare-panel" hidden>
+      <div class="panel-head">
+        <h3 data-i18n="compare.title">Same scan, each model</h3>
+        <button class="button tiny" id="clear-compare" data-i18n="compare.clear">Clear</button>
+      </div>
+      <div class="table-scroll">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th data-i18n="compare.model">Model</th>
+              <th data-i18n="metrics.dice.short">Dice</th>
+              <th data-i18n="metrics.hd95.short">HD95</th>
+              <th data-i18n="metrics.iou.short">IoU</th>
+              <th data-i18n="compare.ms">ms</th>
+            </tr>
+          </thead>
+          <tbody id="compare-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel log-panel">
+      <div class="panel-head">
+        <h3 data-i18n="log.title">Session log</h3>
+        <div class="row tight">
+          <button class="button tiny" id="download-log" data-i18n="log.download">Save</button>
+          <button class="button tiny" id="clear-log" data-i18n="log.clear">Clear</button>
+        </div>
+      </div>
+      <ul class="log" id="log" aria-live="off"></ul>
+    </div>
+  </section>
+</main>
+
+<!-- A single toast area, used for every message so errors are never silent. -->
+<div class="toast-stack" id="toasts" aria-live="assertive" aria-atomic="false"></div>
+
+<!-- ============================ dialogs ============================ -->
+<dialog class="modal" id="settings-modal" aria-labelledby="settings-title">
+  <form method="dialog" class="modal-inner">
+    <header class="modal-head">
+      <h2 id="settings-title" data-i18n="settings.title">Display settings</h2>
+      <button class="icon-button" value="close" data-i18n-aria="modal.close"
+              aria-label="Close"><span aria-hidden="true">&times;</span></button>
+    </header>
+
+    <div class="modal-body">
+      <p class="hint" data-i18n="settings.intro">
+        These preferences are remembered in this browser.
+      </p>
+
+      <label class="field">
+        <span data-i18n="settings.palette">Colour scheme for the overlays</span>
+        <select id="palette">
+          <option value="clinical" data-i18n="settings.palette.clinical">Clinical (green / red)</option>
+          <option value="accessible" data-i18n="settings.palette.accessible">Colour-blind safe (Okabe-Ito)</option>
+        </select>
+      </label>
+      <p class="hint" data-i18n="settings.palette.hint">
+        Green and red is the pair around 1 in 12 men cannot separate reliably.
+      </p>
+
+      <label class="field">
+        <span data-i18n="settings.textSize">Text size</span>
+        <select id="text-size">
+          <option value="normal" data-i18n="settings.textSize.normal">Normal</option>
+          <option value="large" data-i18n="settings.textSize.large">Large</option>
+          <option value="xlarge" data-i18n="settings.textSize.xlarge">Very large</option>
+        </select>
+      </label>
+
+      <label class="field checkbox">
+        <input type="checkbox" id="high-contrast">
+        <span data-i18n="settings.contrast">Higher contrast</span>
+      </label>
+
+      <label class="field checkbox">
+        <input type="checkbox" id="reduce-motion">
+        <span data-i18n="settings.motion">Reduce animation</span>
+      </label>
+
+      <label class="field">
+        <span data-i18n="settings.volume">Sound volume</span>
+        <input type="range" id="volume" min="0" max="100" value="60">
+      </label>
+    </div>
+
+    <footer class="modal-foot">
+      <button class="button" value="close" data-i18n="modal.done">Done</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="modal wide" id="help-modal" aria-labelledby="help-title">
+  <form method="dialog" class="modal-inner">
+    <header class="modal-head">
+      <h2 id="help-title" data-i18n="help.title">How to use this</h2>
+      <button class="icon-button" value="close" data-i18n-aria="modal.close"
+              aria-label="Close"><span aria-hidden="true">&times;</span></button>
+    </header>
+
+    <div class="modal-body help-body">
+      <section>
+        <h3 data-i18n="help.walkthrough">Walkthrough</h3>
+        <ol class="numbered">
+          <li data-i18n="help.step1">Pick a model on the left and press Load. A three-note chime means it is in memory, and its size, parameter count and FLOPs appear underneath.</li>
+          <li data-i18n="help.step2">Choose a scan. The default list is the 200 scans Task 2 was scored on, so the numbers you see match the report.</li>
+          <li data-i18n="help.step3">For a Task 1 model, drag a rough box round the lesion, or press Simulate box to use the same loose box the evaluation used. Task 2 models need no box.</li>
+          <li data-i18n="help.step4">Press Segment. The outlines appear on the scan and the scores appear on the right.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h3 data-i18n="help.metrics">Reading the metrics</h3>
+        <dl class="glossary" id="metric-glossary"></dl>
+      </section>
+
+      <section>
+        <h3 data-i18n="help.keys">Keyboard</h3>
+        <ul class="keylist">
+          <li><kbd>R</kbd> <span data-i18n="help.key.run">Run the model</span></li>
+          <li><kbd>B</kbd> <span data-i18n="help.key.box">Simulate the box</span></li>
+          <li><kbd>N</kbd> / <kbd>P</kbd> <span data-i18n="help.key.nav">Next / previous scan</span></li>
+          <li><kbd>1</kbd>–<kbd>6</kbd> <span data-i18n="help.key.views">Switch view</span></li>
+          <li><kbd>M</kbd> <span data-i18n="help.key.mute">Mute or unmute</span></li>
+          <li><kbd>?</kbd> <span data-i18n="help.key.help">This window</span></li>
+          <li><kbd>Esc</kbd> <span data-i18n="help.key.close">Close a window</span></li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 data-i18n="help.trouble">If something goes wrong</h3>
+        <dl class="glossary">
+          <dt data-i18n="help.trouble.q1">The Task 1 model will not load</dt>
+          <dd data-i18n="help.trouble.a1">The forest runs in a separate helper process using mvi-env. Check that the mvi-env folder is still next to task3, then press Load again — that restarts the helper.</dd>
+          <dt data-i18n="help.trouble.q2">No scans are listed</dt>
+          <dd data-i18n="help.trouble.a2">The BRISC 2025 folder has to sit beside task3 as brisc2025/segmentation_task. Uploading your own scan works without it.</dd>
+          <dt data-i18n="help.trouble.q3">Metrics show a dash</dt>
+          <dd data-i18n="help.trouble.a3">That scan has no ground truth mask, so there is nothing to score against. The segmentation is still shown.</dd>
+          <dt data-i18n="help.trouble.q4">There is no sound</dt>
+          <dd data-i18n="help.trouble.a4">Browsers block audio until the page has been clicked once. Click anywhere, and check the speaker button in the header is on.</dd>
+        </dl>
+      </section>
+    </div>
+
+    <footer class="modal-foot">
+      <button class="button" value="close" data-i18n="modal.done">Done</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="modal wide" id="credits-modal" aria-labelledby="credits-title">
+  <form method="dialog" class="modal-inner">
+    <header class="modal-head">
+      <h2 id="credits-title" data-i18n="credits.title">Contributions</h2>
+      <button class="icon-button" value="close" data-i18n-aria="modal.close"
+              aria-label="Close"><span aria-hidden="true">&times;</span></button>
+    </header>
+
+    <div class="modal-body" id="credits-body">
+      <p class="hint" data-i18n="credits.intro">
+        Contributions are stated using CRediT, the Contributor Roles Taxonomy.
+      </p>
+      <div id="credits-content"></div>
+    </div>
+
+    <footer class="modal-foot">
+      <a class="button ghost" id="credits-link" href="https://credit.niso.org/"
+         target="_blank" rel="noopener" data-i18n="credits.standard">About CRediT</a>
+      <button class="button" value="close" data-i18n="modal.done">Done</button>
+    </footer>
+  </form>
+</dialog>
+
+<script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='js/audio.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

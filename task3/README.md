@@ -43,11 +43,32 @@ my-first-project/
 ├── tf-env/                          Task 2 environment (TensorFlow)
 ├── task1/outputs/rf_segmenter.joblib
 ├── task2/outputs/models/*.h5        three networks plus their .json sidecars
+├── MVI FINAL/                       the group's ultrasound half (see below)
+│   ├── innovation_seed42_*.keras
+│   ├── benchmark_unet.keras
+│   └── Dataset_BUSI_with_GT/        benign/ malignant/ normal/
 └── task3/                           this folder
 ```
 
 If `task1/outputs/rf_segmenter.joblib` is missing, run `python train_model.py` in
 `task1` first. If the `.h5` files are missing, run `python run_all.py` in `task2`.
+
+### The second dataset
+
+The GUI serves two datasets, because the group's Task 2 work was done twice on
+two different problems:
+
+| | Dataset | Models |
+|---|---|---|
+| ours | BRISC 2025 — brain MRI, 860 test scans | the forest and the three `.h5` networks |
+| theirs | BUSI — breast ultrasound, 780 scans | the four `.keras` networks in `MVI FINAL` |
+
+A model only understands the pictures it was trained on, so loading one switches
+the scan picker to its dataset automatically. `Dataset_BUSI_with_GT` can sit
+either in the project root or inside `MVI FINAL`; it is looked for on every
+request, so it can be dropped in while the server is running. If it is not
+there the ultrasound models are still listed, with a line saying where to put
+the images.
 
 ### The one dependency the GUI adds
 
@@ -119,7 +140,39 @@ model is loaded.
 
 The four steps are listed in the top-left panel and tick themselves off as you go.
 
-### 4.1 Loading a model
+### 4.1 The six models
+
+The list holds one Task 1 and one Task 2 model per student, named after their author:
+
+| | Task 1 (semi-automated / classical) | Task 2 (deep learning) |
+|---|---|---|
+| **SALMAN (ME)** | BRISC 2025 brain MRI — Random Forest on 41 features per pixel, driven by one box the user drags | BRISC 2025 — MHA-ResUNet, structurally pruned |
+| **AFNAN** | BUSI breast ultrasound — multi-Otsu and blob proposals, scored and refined with a Chan-Vese contour | BUSI — residual V-Net blocks, ASPP bottleneck, fused attention gates, pruned |
+| **AMMAN** | FIVES retinal fundus — classical vessel segmentation | FIVES — attention U-Net with clDice, structurally pruned and fine-tuned |
+
+Three students, three datasets, three ways of running. `members.py` is the one place
+that says which is which, and everything else asks it:
+
+- **Salman's Task 1** is unpickled by a helper process on `mvi-env` (§3.2).
+- **Salman's and Afnan's Task 2** are loaded into this process and run live.
+- **Afnan's Task 1** is her notebook pipeline ported into `afnan_task1.py`, so it runs
+  live on CPU. There is no trained file behind it — the spec sheet describes the stages
+  instead of weights, and reports 0 parameters, which is the honest answer for a
+  classical method rather than a missing one.
+- **Aman's two** are read back from the recorded results he handed over, not run. His
+  Task 2 checkpoint is a Keras 3 file and this GUI runs TensorFlow 2.13, which cannot
+  deserialise it; both of his share folders ship every test image, its ground truth and
+  its prediction as PNGs together with the per-image metrics, which is the way his
+  `HOW_TO_INTEGRATE.txt` asks for them to be used. The card says **recorded results**,
+  the metrics are the ones measured when the results were produced rather than a
+  rescore of the display copies, and the Confidence view says plainly that there is no
+  probability map behind a finished mask.
+
+Anything else — the PSO-tuned baselines, the unpruned models, the ablations, the folds —
+is still loadable by path through "Load another model file". They are kept out of the
+list so the six being marked are the six on screen.
+
+### 4.2 Loading a model
 
 Press **Load** on any model. A three-note chime means it is in memory, and its
 specification appears underneath — for the forest: number of trees, features per pixel,
@@ -136,15 +189,31 @@ inference time rather than the graph-compilation time.
 
 **To load a model that is not in the list** — for example one you retrained yourself —
 open "Load another model file" and give the path, either relative to the project folder
-or absolute. `.joblib` is treated as Task 1, `.h5` as Task 2. Files outside the project
-folder are refused.
+or absolute. `.joblib` is treated as Task 1, `.h5` as Task 2, and `.keras` as one of
+Afnan's ultrasound networks. Files outside the project folder are refused. This is how
+to reach the rest of `afnan/`, where about thirty `.keras` files sit — the ablations,
+the cross-validation folds and the other seeds are all loadable by path.
 
-### 4.2 Choosing a scan
+The ultrasound models report two extra fields. **Weights pruned to zero** is the share
+of the network the pruning stage actually zeroed, measured from the file rather than
+taken from its name. **Test time augmentation** says whether the scan is predicted four
+times — as itself and its three flips — and averaged, which is how the group's notebook
+scores them; without it the Dice shown here would sit a point below their report.
 
-The default list is the 200 scans Task 2 was evaluated on, drawn with the same random
-seed, so the numbers you see are directly comparable with the report. The **Show** menu
-switches to all 860 test scans or filters by tumour type. `N` and `P` step through the
-list; **Random** jumps somewhere new.
+### 4.3 Choosing a scan
+
+The default list is the scans the loaded model was actually evaluated on, so the numbers
+you see are directly comparable with the report: 200 for BRISC, drawn with the same
+random seed the evaluation used, and 102 for BUSI, read straight out of the group's
+`per_image_seed42_pruned_tta.csv` so the two cannot drift apart. The **Show** menu
+switches to every scan in the dataset or filters by class — glioma, meningioma and
+pituitary for BRISC; benign, malignant and no-lesion for BUSI; and for FIVES, **the
+report cases only**, which are the handful Amman's report works through. `N` and `P`
+step through the list; **Random** jumps somewhere new.
+
+Loading a model switches the picker to that model's dataset by itself. Running a breast
+ultrasound network on a brain MRI would still produce a mask and a Dice score, and both
+would mean nothing, so the interface does not let the two drift apart.
 
 **To use your own scan**, drop a file onto the upload area or click it. JPG, PNG, BMP and
 TIFF are accepted. If you also have the ground truth mask, tick "I also have the ground
@@ -152,7 +221,7 @@ truth mask" *before* choosing the file and you will be asked for the mask second
 a mask the scan is still segmented, but the metrics show a dash, because there is nothing
 to score against.
 
-### 4.3 Marking the lesion — Task 1 only
+### 4.4 Marking the lesion
 
 Task 1 is semi-automated: it needs a rough box around the lesion, and the four box
 coordinates are the only thing the user contributes. Either
@@ -162,9 +231,11 @@ coordinates are the only thing the user contributes. Either
   ground truth bounding box with every side pushed outward by a random 2–20%, seeded from
   the file name so the same scan always gives the same box.
 
-Task 2 models need no box and the controls disappear for them.
+Only Salman's Task 1 model works this way. Afnan's and Amman's Task 1 methods find the
+lesion themselves, and every Task 2 model is fully automatic, so the box controls
+disappear for all five of them rather than being shown and ignored.
 
-### 4.4 Running it and reading the result
+### 4.5 Running it and reading the result
 
 Press **Segment this scan** (`R`).
 
@@ -177,7 +248,7 @@ Press **Segment this scan** (`R`).
   boundary beating Task 2's.
 - **Read the results aloud** speaks the result in the current interface language.
 
-### 4.5 Interpreting the metrics
+### 4.6 Interpreting the metrics
 
 | Metric | What it means | Direction |
 |---|---|---|
@@ -199,7 +270,7 @@ explicitly instead of just showing a zero, because that silent-failure mode is t
 limitation of the Task 2 model and the reason the deployment design falls back to Task 1's
 box.
 
-### 4.6 Views
+### 4.7 Views
 
 | Tab | Shows |
 |---|---|
@@ -214,13 +285,45 @@ box.
 the user's box into the exported image. **Export PNG** downloads a labelled
 scan / ground truth / prediction strip for the report or the slides.
 
-### 4.7 Display settings
+### 4.8 Display settings
 
-Under **Display**: overlay colour scheme (clinical green/red, or the Okabe–Ito
-colour-blind safe set), three text sizes, higher contrast, reduced animation, and sound
-volume. Everything is remembered in the browser.
+Under **Display**: the interface design (see 4.8), overlay colour scheme (clinical
+green/red, or the Okabe–Ito colour-blind safe set), three text sizes, higher contrast,
+reduced animation, and sound volume. Everything is remembered in the browser.
 
-### 4.8 Keyboard
+### 4.9 Interface designs
+
+The same interface comes in three designs. Every control, keyboard shortcut, metric and
+translation is identical in all three — only the look and the arrangement change, so
+switching is purely a matter of taste and does not affect any result.
+
+**Aurora is the design the group settled on, and it is what the GUI opens with.** The
+other two are kept so the choice can be shown and so the first design is never lost.
+
+| Design | Look | Arrangement |
+|---|---|---|
+| **Aurora** (default) | Frosted translucent panels over a soft aurora, one cyan-to-violet gradient for every accent | Scan first: it fills the whole side at full height, set-up and results stacked beside it |
+| **Original** | Dark slate, teal accent, rounded cards | Three columns: set-up, viewer, results |
+| **Clinical workstation** | Radiology reading station — square corners, hairline rules, monospaced numbers, the scan in a black viewport | Set-up rail down the side at full height, viewer above, results docked along the bottom |
+
+Two ways to switch:
+
+* **Display → Interface design.** The change is immediate and nothing is lost — a loaded
+  model and the result on screen both survive it.
+* **The address bar**, which is the quicker one for a demonstration:
+  `?skin=aurora`, `?skin=clinical` or `?skin=original`, e.g.
+  `http://127.0.0.1:5050/?skin=original`. A skin named in the address wins over the
+  saved preference and then becomes the saved preference.
+
+How it works, and why the original cannot break: `style.css` is the original interface
+and is always loaded. A design is one extra stylesheet layered on top of it
+(`static/css/skin-clinical.css`, `static/css/skin-aurora.css`), so **Original** means no
+extra stylesheet is loaded and not one line of the first design has changed. Deleting
+both skin files and the `<select id="skin">` from the settings dialog would leave the
+GUI exactly as it was; an untouched copy of the original four files is also kept in
+`backups/gui-original/`.
+
+### 4.10 Keyboard
 
 | Key | Action |
 |---|---|
@@ -292,12 +395,19 @@ it — that file describes the architecture so the weights can be loaded back.
 |---|---|
 | `app.py` | Flask server and the HTTP API |
 | `backends.py` | Model registry, the TensorFlow runner, and the bridge to the Task 1 worker |
+| `members.py` | Who owns which model, and how each one has to be run |
+| `busi_models.py` | Afnan's ultrasound networks: padded input pipeline, TTA, spec sheet |
+| `afnan_task1.py` | Afnan's classical ultrasound pipeline, ported from her notebook |
+| `fives_results.py` | Aman's recorded FIVES results: listing, masks and metrics |
 | `task1_worker.py` | Runs on `mvi-env` and serves the Random Forest |
 | `render.py` | Draws the six views and the export strip |
 | `make_sounds.py` | Generates the six WAV cues |
 | `credits.json` | The CReDiT contribution table — **edit this with the real names** |
 | `templates/index.html` | The page |
-| `static/css/style.css` | All styling, themes and the right-to-left mirroring |
+| `static/css/style.css` | All styling, themes and the right-to-left mirroring — the original design |
+| `static/css/skin-clinical.css` | The Clinical workstation design, layered on top of `style.css` |
+| `static/css/skin-aurora.css` | The Aurora design, layered on top of `style.css` |
+| `backups/gui-original/` | Untouched copies of the four original interface files |
 | `static/js/i18n.js` | The three translations and the language switch |
 | `static/js/audio.js` | Sound cues and the spoken readout |
 | `static/js/app.js` | Everything else on the client |
@@ -309,8 +419,8 @@ it — that file describes the architecture so the weights can be loaded back.
 
 | Route | Purpose |
 |---|---|
-| `GET /api/state` | Models found, view names, dataset present |
-| `GET /api/images?filter=` | Selectable scans |
+| `GET /api/state` | Models found, view names, which datasets are present |
+| `GET /api/images?dataset=&filter=` | Selectable scans for one dataset |
 | `POST /api/load` | Load a model, return its specification |
 | `POST /api/box` | Simulate the clinician's box |
 | `POST /api/predict` | Run a model, return the metrics |

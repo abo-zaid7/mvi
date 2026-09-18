@@ -20,7 +20,11 @@ const state = {
   models: [],
   loadedModel: null,       // path of the model currently in memory
   loadedTask: null,        // 1 or 2
+  loadedDataset: null,     // "brisc", "busi" or "fives" - the scans it expects
+  needsBox: false,         // whether the loaded model waits for a user box
   loadedInfo: null,        // its spec sheet, kept so it can be re-translated
+  datasets: {},            // what /api/state says is actually on disk
+  dataset: "brisc",        // the dataset the scan picker is currently showing
   images: [],
   imageIndex: -1,
   box: null,               // [top, left, bottom, right] in 512-space
@@ -33,6 +37,7 @@ const state = {
 
 const settings = {
   language: "en",
+  skin: "aurora",
   theme: "dark",
   sound: true,
   speech: false,
@@ -121,7 +126,39 @@ function loadSettings() {
   } catch (error) {
     /* A corrupt entry is not worth complaining about - the defaults are fine. */
   }
+
+  /* The head script has already resolved the skin, taking ?skin= into account,
+   * so that is the authority here rather than the stored value. */
+  settings.skin = document.documentElement.dataset.skin || settings.skin;
 }
+
+function applySkin(name) {
+  /* The skin stylesheet is layered on top of style.css rather than replacing it,
+   * so "original" means removing the extra <link> and nothing else.  The head of
+   * index.html does the same thing before the first paint; this is the version
+   * that runs when the choice changes while the page is open. */
+  const root = document.documentElement;
+  root.dataset.skin = name;
+
+  const existing = document.getElementById("skin-css");
+  if (name === "original") {
+    if (existing) existing.remove();
+    return;
+  }
+
+  const href = `${root.dataset.skinBase || "/static/css/"}skin-${name}.css`;
+  if (existing) {
+    if (existing.getAttribute("href") !== href) existing.href = href;
+    return;
+  }
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.id = "skin-css";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
 
 function saveSettings() {
   try {
@@ -142,7 +179,10 @@ function applySettings() {
   audio.setSpeaking(settings.speech);
   audio.setVolume(settings.volume / 100);
 
+  applySkin(settings.skin);
+
   $("#language").value = settings.language;
+  $("#skin").value = settings.skin;
   $("#palette").value = settings.palette;
   $("#text-size").value = settings.textSize;
   $("#high-contrast").checked = settings.contrast;
@@ -163,21 +203,38 @@ function applySettings() {
 
 /* ------------------------------------------------------------------- models */
 
+/* The list is split by task, and inside each task there is one model per
+ * student, named after its author.  The three of them are on three different
+ * datasets, so each card says which one it wants rather than the heading saying
+ * it for a whole group. */
+const MODEL_GROUPS = [
+  { task: 1, label: "models.task1" },
+  { task: 2, label: "models.task2" },
+];
+
 function renderModels() {
   const container = $("#model-list");
   container.innerHTML = "";
 
-  [1, 2].forEach((task) => {
+  MODEL_GROUPS.forEach(({ task, label }) => {
     const group = state.models.filter((model) => model.task === task);
     if (!group.length) return;
 
     const heading = document.createElement("p");
     heading.className = "group-label";
-    heading.textContent = i18n.t(`models.task${task}`);
+    heading.textContent = i18n.t(label);
     container.append(heading);
 
     group.forEach((model) => {
       const isLoaded = state.loadedModel === model.id;
+      const dataset = state.datasets[model.dataset] || {};
+
+      /* Two different ways a card can be unusable: the model file itself is
+       * missing, or the scans it was trained on are not on this machine.  Both
+       * are said on the card, because finding out by loading it and landing in
+       * an empty picker is worse. */
+      const missingScans = dataset.present === false;
+      const usable = model.available !== false;
 
       const card = document.createElement("div");
       card.className = `model-card${isLoaded ? " loaded" : ""}`;
@@ -195,13 +252,25 @@ function renderModels() {
       const note = info.querySelector(".model-note");
       note.textContent = model.note;
       note.title = model.note;
-      info.querySelector(".model-file").textContent =
-        `${model.file} · ${model.size_mb} MB`;
+
+      const details = [model.file];
+      if (model.size_mb) details.push(`${model.size_mb} MB`);
+      if (model.recorded) details.push(i18n.t("models.recorded"));
+      info.querySelector(".model-file").textContent = details.join(" · ");
+
+      if (!usable || missingScans) {
+        const warning = document.createElement("span");
+        warning.className = "hint warn";
+        warning.textContent = usable
+          ? i18n.t("models.missingData", dataset.expected_at || "")
+          : i18n.t("models.unavailable");
+        info.append(warning);
+      }
 
       const button = document.createElement("button");
       button.className = `button small${isLoaded ? " ghost" : ""}`;
       button.textContent = isLoaded ? i18n.t("models.ready") : i18n.t("models.load");
-      button.disabled = isLoaded;
+      button.disabled = isLoaded || !usable;
       button.addEventListener("click", () => loadModel(model.id, button));
 
       card.append(info, button);
@@ -215,6 +284,7 @@ function renderModels() {
 async function refreshModels() {
   const data = await api("/api/state");
   state.models = data.models;
+  state.datasets = data.datasets || {};
   renderModels();
 }
 
@@ -234,12 +304,25 @@ async function loadModel(modelId, button) {
 
     state.loadedModel = modelId;
     state.loadedTask = data.task;
+    /* Only Salman's forest is box-driven; Afnan's and Amman's Task 1 methods
+     * find the lesion themselves, so the box controls stay out of their way. */
+    const entry = state.models.find((item) => item.id === modelId);
+    state.needsBox = entry ? entry.needs_box !== false : data.task === 1;
+    state.loadedDataset = data.dataset || "brisc";
     state.loadedInfo = data.info;
 
     renderModels();
     renderSpecSheet(data.info);
     updateTaskUi();
     updateSteps();
+
+    /* A model only understands the pictures it was trained on, so loading one
+     * from the other dataset swaps the scan picker over to match.  Running a
+     * breast ultrasound network on a brain MRI would produce a mask and a Dice
+     * score that mean nothing at all. */
+    if (state.loadedDataset !== state.dataset) {
+      await useDataset(state.loadedDataset);
+    }
 
     const model = state.models.find((entry) => entry.id === modelId);
     const name = model ? model.name : modelId.split("/").pop();
@@ -259,12 +342,14 @@ async function loadModel(modelId, button) {
 /* Which spec fields to show, in this order.  Anything the back end did not
  * report is skipped rather than shown empty. */
 const SPEC_ORDER = [
-  "kind", "input_size", "trees", "features", "min_samples_leaf", "patch_size",
-  "roi_padding", "filters", "base_filters", "layers", "params_M",
-  "gflops", "size_mb", "measured_latency_ms", "load_seconds",
+  "kind", "dataset", "input_size", "trees", "features", "min_samples_leaf",
+  "patch_size", "roi_padding", "filters", "base_filters", "layers", "params_M",
+  "sparsity_pct", "gflops", "size_mb", "measured_latency_ms", "tta",
+  "load_seconds",
 ];
 
 const SPEC_UNITS = {
+  sparsity_pct: " %",
   size_mb: " MB",
   measured_latency_ms: " ms",
   load_seconds: " s",
@@ -285,9 +370,15 @@ function renderSpecSheet(info) {
     term.textContent = i18n.t(`spec.${key}`);
 
     const definition = document.createElement("dd");
-    definition.textContent = Array.isArray(value)
-      ? value.join(" · ")
-      : `${value}${SPEC_UNITS[key] || ""}`;
+    if (Array.isArray(value)) {
+      definition.textContent = value.join(" · ");
+    } else if (typeof value === "boolean") {
+      definition.textContent = i18n.t(value ? "spec.yes" : "spec.no");
+    } else if (key === "dataset") {
+      definition.textContent = i18n.t(`dataset.${value}`);
+    } else {
+      definition.textContent = `${value}${SPEC_UNITS[key] || ""}`;
+    }
 
     list.append(term, definition);
   });
@@ -298,9 +389,9 @@ function renderSpecSheet(info) {
 /* Task 1 needs a box and Task 2 does not, so the box controls only appear when
  * they are actually usable.  Showing a dead control is worse than hiding it. */
 function updateTaskUi() {
-  const isTask1 = state.loadedTask === 1;
-  $("#box-controls").hidden = !isTask1;
-  $("#box-canvas").classList.toggle("drawable", isTask1);
+  const wantsBox = state.needsBox === true;
+  $("#box-controls").hidden = !wantsBox;
+  $("#box-canvas").classList.toggle("drawable", wantsBox);
   updateRunHint();
 }
 
@@ -308,7 +399,7 @@ function updateRunHint() {
   const hint = $("#run-hint");
   if (!state.loadedModel) hint.textContent = i18n.t("run.hint");
   else if (state.imageIndex < 0) hint.textContent = i18n.t("run.hint.image");
-  else if (state.loadedTask === 1 && !state.box) hint.textContent = i18n.t("run.hint.box");
+  else if (state.needsBox && !state.box) hint.textContent = i18n.t("run.hint.box");
   else hint.textContent = i18n.t("run.hint.ready");
 }
 
@@ -325,7 +416,12 @@ function renderImageOptions() {
   state.images.forEach((image, index) => {
     const option = document.createElement("option");
     option.value = String(index);
-    option.textContent = `${image.name}  ·  ${i18n.t(`tumour.${image.tumour_type}`)}`;
+    /* BRISC and BUSI classes have translations; the FIVES conditions arrive as
+     * plain text from Amman's CSV, so an untranslated key falls back to it. */
+    const key = `tumour.${image.tumour_type}`;
+    const translated = i18n.t(key);
+    const label = translated === key ? image.tumour_type : translated;
+    option.textContent = `${image.name}  ·  ${label}`;
     select.append(option);
   });
 
@@ -333,11 +429,47 @@ function renderImageOptions() {
   if (state.imageIndex >= 0) select.value = String(state.imageIndex);
 }
 
+/* Switch the scan picker to a dataset: hide the class filters that belong to
+ * the other one, relabel the panel, and fetch the new listing. */
+async function useDataset(dataset) {
+  state.dataset = dataset;
+
+  const filterSelect = $("#image-filter");
+  $$("#image-filter option[data-dataset]").forEach((option) => {
+    const mine = option.dataset.dataset === dataset;
+    option.hidden = !mine;
+    option.disabled = !mine;
+  });
+
+  /* If the filter that was selected belonged to the other dataset it is now
+   * hidden, and a select stuck on a hidden option looks broken. */
+  if (filterSelect.selectedOptions[0] && filterSelect.selectedOptions[0].disabled) {
+    filterSelect.value = "evaluated";
+  }
+
+  renderDatasetNote();
+  state.imageIndex = -1;
+  await refreshImages();
+}
+
+function renderDatasetNote() {
+  const info = state.datasets[state.dataset] || {};
+  $("#dataset-note").textContent = info.present === false
+    ? i18n.t("images.missing", info.expected_at || "")
+    : i18n.t(`dataset.${state.dataset}`);
+}
+
 async function refreshImages() {
   const filter = $("#image-filter").value;
 
   try {
-    const data = await api(`/api/images?filter=${encodeURIComponent(filter)}`);
+    /* The loaded model goes with the request: Amman's two recorded sets cover
+     * the same 200 scans under the same names, and only the model says which
+     * set's input pictures the picker should be offering. */
+    const data = await api(
+      `/api/images?dataset=${encodeURIComponent(state.dataset)}` +
+      `&filter=${encodeURIComponent(filter)}` +
+      (state.loadedModel ? `&model=${encodeURIComponent(state.loadedModel)}` : ""));
     state.images = data.images;
   } catch (error) {
     state.images = [];
@@ -392,6 +524,7 @@ async function uploadScan(file, maskFile) {
     const data = await api("/api/upload", { method: "POST", body: form });
 
     $("#image-filter").value = "all";
+    state.imageIndex = -1;
     await refreshImages();
 
     const index = state.images.findIndex((image) => image.name === data.name);
@@ -567,7 +700,7 @@ async function runModel() {
     return;
   }
 
-  if (state.loadedTask === 1 && !state.box) {
+  if (state.needsBox && !state.box) {
     toast(i18n.t("toast.noBox"), "warn");
     audio.prompt();
     return;
@@ -586,7 +719,7 @@ async function runModel() {
       body: JSON.stringify({
         model: state.loadedModel,
         image: name,
-        box: state.loadedTask === 1 ? state.box : null,
+        box: state.needsBox ? state.box : null,
       }),
     });
 
@@ -657,7 +790,14 @@ function setView(view) {
     tab.setAttribute("aria-selected", String(active));
   });
 
-  $("#view-caption").textContent = i18n.t(`views.${view}.caption`);
+  /* A recorded result is a finished mask, not a probability map, so the
+   * confidence view has nothing to colour - say that rather than leaving a
+   * plain scan on screen with no explanation. */
+  let caption = i18n.t(`views.${view}.caption`);
+  if (view === "heatmap" && state.result && state.result.recorded) {
+    caption = i18n.t("views.heatmap.recorded");
+  }
+  $("#view-caption").textContent = caption;
   $("#legend").dataset.view = view;
 
   refreshView();
@@ -1046,6 +1186,7 @@ function changeLanguage(code) {
   renderLog();
   renderComparisons();
   renderImageOptions();
+  renderDatasetNote();
   if (state.loadedInfo) renderSpecSheet(state.loadedInfo);
   setView(state.view);
   updateRunHint();
@@ -1077,7 +1218,7 @@ function setUpKeyboard() {
 
     switch (key) {
       case "r": runModel(); break;
-      case "b": if (state.loadedTask === 1) simulateBox(); break;
+      case "b": if (state.needsBox) simulateBox(); break;
       case "n": selectImage(state.imageIndex + 1); break;
       case "p": selectImage(state.imageIndex - 1); break;
       case "m":
@@ -1127,6 +1268,15 @@ function setUpEvents() {
     audio.click();
   });
   $("#open-credits").addEventListener("click", showCredits);
+
+  /* Switching design only swaps the stylesheet - no state is touched, so a
+   * loaded model and a finished result survive the change. */
+  $("#skin").addEventListener("change", (event) => {
+    settings.skin = event.target.value;
+    applySkin(settings.skin);
+    saveSettings();
+    audio.click();
+  });
 
   /* Settings that change how things are drawn need a re-render, not just a save. */
   $("#palette").addEventListener("change", (event) => {
@@ -1316,7 +1466,7 @@ async function start() {
 
   try {
     await refreshModels();
-    await refreshImages();
+    await useDataset(state.dataset);
   } catch (error) {
     toast(error.message, "error");
   }

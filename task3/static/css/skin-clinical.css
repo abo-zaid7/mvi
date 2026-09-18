@@ -1,0 +1,353 @@
+/*
+ * Skin: Clinical Workstation.
+ *
+ * Loaded on top of style.css, never instead of it - the base stylesheet keeps
+ * all the structure, the logical properties and the accessibility switches, and
+ * this file only restates the parts that make the interface look and sit
+ * differently.  Removing the <link> gives the original GUI back exactly.
+ *
+ * The idea is a radiology reading station rather than a web app: paper-white
+ * chrome, hairline rules instead of shadows, square corners, numbers in a
+ * monospaced face so the columns line up, and the scan itself in a black
+ * viewport.  The layout changes with it - the setup rail runs the full height
+ * on the starting side, the viewer takes the rest, and the results sit in a
+ * dock along the bottom where a reporting station would put them.
+ *
+ * Token blocks are written as :root[data-skin="clinical"] on purpose.  That is
+ * one specificity step above the base file's :root[data-theme="light"], so the
+ * skin wins; the theme, contrast and text size switches are then restated here
+ * with one more step again so they keep working on top of it.
+ */
+
+/* ------------------------------------------------------------------ tokens */
+/* Dark is the default here too, because a reading room is a dark room - but it
+ * is a neutral slate rather than the blue-black of the original. */
+:root[data-skin="clinical"] {
+  --bg: #14171b;
+  --surface: #1b1f25;
+  --raised: #22272e;
+  --raised-hover: #2a3038;
+  --border: #333a44;
+  --border-strong: #4a535f;
+  --text: #eceff3;
+  --text-muted: #a3adb9;
+  --text-faint: #77828f;
+
+  --accent: #4d9fff;
+  --accent-dim: #2b7fe0;
+  --accent-ink: #06182e;
+  --accent-wash: rgba(77, 159, 255, 0.14);
+
+  --radius: 3px;
+  --radius-sm: 2px;
+  --shadow: none;
+
+  --font: "Helvetica Neue", Helvetica, Arial, "Noto Sans", "Noto Sans Arabic",
+          system-ui, sans-serif;
+
+  /* The viewport the scan is drawn in, and the rule weight used everywhere. */
+  --viewport: #000000;
+  --hairline: 1px;
+}
+
+:root[data-skin="clinical"][data-theme="light"] {
+  --bg: #dfe3e8;
+  --surface: #ffffff;
+  --raised: #f1f3f6;
+  --raised-hover: #e6eaef;
+  --border: #c4ccd6;
+  --border-strong: #9aa5b2;
+  --text: #10151b;
+  --text-muted: #4d5a67;
+  --text-faint: #6f7c8a;
+
+  --accent: #0b5fc7;
+  --accent-dim: #094a9c;
+  --accent-ink: #ffffff;
+  --accent-wash: rgba(11, 95, 199, 0.10);
+}
+
+/* The contrast switch has to be restated, or the skin's own tokens would sit on
+ * top of it and the setting would silently do nothing. */
+:root[data-skin="clinical"][data-contrast="high"] {
+  --text: #ffffff;
+  --text-muted: #e2e8ef;
+  --text-faint: #c2cbd5;
+  --border: #6d7885;
+  --border-strong: #97a2ae;
+  --surface: #101317;
+  --raised: #1a1e24;
+}
+
+:root[data-skin="clinical"][data-theme="light"][data-contrast="high"] {
+  --text: #000000;
+  --text-muted: #1c242c;
+  --text-faint: #3a444e;
+  --border: #808d9b;
+  --border-strong: #4f5b68;
+  --surface: #ffffff;
+}
+
+/* ------------------------------------------------------------------ layout */
+/* Rail down the starting side at full height, viewer top, results docked along
+ * the bottom of the viewer column.  Line numbers rather than left/right, so the
+ * Arabic switch still mirrors the whole thing. */
+[data-skin="clinical"] .layout {
+  grid-template-columns: 258px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(190px, 31vh);
+  gap: 0;
+  padding: 0;
+}
+
+[data-skin="clinical"] .column {
+  gap: 0;
+  padding: 10px;
+  padding-inline-end: 10px;
+}
+
+[data-skin="clinical"] .column.left {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  border-inline-end: var(--hairline) solid var(--border);
+  background: var(--surface);
+  gap: 0;
+}
+
+[data-skin="clinical"] .column.centre {
+  grid-column: 2;
+  grid-row: 1;
+  padding-block-end: 0;
+}
+
+/* The dock: metrics, the comparison table and the log side by side under the
+ * scan, each scrolling on its own rather than the whole strip scrolling. */
+[data-skin="clinical"] .column.right {
+  grid-column: 2;
+  grid-row: 2;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 10px;
+  overflow: hidden;
+  border-block-start: var(--hairline) solid var(--border);
+  background: var(--surface);
+}
+
+[data-skin="clinical"] .column.right > .panel {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-y: auto;
+  margin: 0;
+}
+
+[data-skin="clinical"] .column.right > .results-panel { flex: 1.15 1 0; }
+[data-skin="clinical"] .column.right > .log-panel { flex: 0.95 1 0; }
+
+/* ------------------------------------------------------------------ chrome */
+/* Panels inside a column that already has a border of its own do not need one
+ * each; the rule between them is enough and it reads as one instrument rather
+ * than a pile of cards. */
+[data-skin="clinical"] .panel {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 11px 3px;
+}
+
+[data-skin="clinical"] .column.left > .panel + .panel,
+[data-skin="clinical"] .column.centre > .panel + .panel {
+  border-block-start: var(--hairline) solid var(--border);
+}
+
+[data-skin="clinical"] .column.right > .panel + .panel {
+  border-inline-start: var(--hairline) solid var(--border);
+  padding-inline-start: 12px;
+}
+
+[data-skin="clinical"] .viewer-panel {
+  padding-block: 10px 0;
+  border: none;
+}
+
+[data-skin="clinical"] .topbar {
+  padding: 7px 12px;
+  border-block-end: var(--hairline) solid var(--border-strong);
+  background: var(--surface);
+}
+
+[data-skin="clinical"] .brand-mark { width: 24px; height: 24px; }
+[data-skin="clinical"] .brand-text h1 {
+  font-size: 0.86rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 700;
+}
+[data-skin="clinical"] .brand-text p { font-size: 0.7rem; }
+
+[data-skin="clinical"] .panel-head h3 {
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  color: var(--text-faint);
+}
+[data-skin="clinical"] .panel-head { margin-block-end: 9px; }
+
+/* Rounded pills look out of place next to square panels. */
+[data-skin="clinical"] .count,
+[data-skin="clinical"] .badge,
+[data-skin="clinical"] .role-chips li {
+  border-radius: 0;
+  border: var(--hairline) solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  padding: 1px 6px;
+}
+
+[data-skin="clinical"] .button {
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+[data-skin="clinical"] .button:active:not(:disabled) { transform: none; }
+[data-skin="clinical"] .button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+[data-skin="clinical"] select,
+[data-skin="clinical"] input[type="text"] {
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* --------------------------------------------------------------- the scan */
+/* A black viewport with a hairline round it, the way an image window is framed
+ * on a reporting station.  The overlay colours keep their meaning against it. */
+[data-skin="clinical"] .stage {
+  background: var(--viewport);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: 0;
+  /* The base file holds the stage at 340px minimum.  That is right when the
+   * column runs the whole window height, but here the results dock takes the
+   * bottom third, and a minimum taller than the space left makes the viewer
+   * panel overflow and draw on top of the action bar.  A lower floor lets the
+   * stage simply take whatever height is left. */
+  min-height: 200px;
+}
+
+[data-skin="clinical"] .view-tabs {
+  background: transparent;
+  border-block-end: var(--hairline) solid var(--border);
+  border-radius: 0;
+  gap: 0;
+  padding: 0;
+}
+[data-skin="clinical"] .view-tabs button {
+  border-radius: 0;
+  font-size: 0.73rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 7px 11px;
+  border-block-end: 2px solid transparent;
+}
+[data-skin="clinical"] .view-tabs button.active {
+  background: transparent;
+  color: var(--accent);
+  border-block-end-color: var(--accent);
+  box-shadow: none;
+}
+
+[data-skin="clinical"] .view-caption {
+  font-size: 0.74rem;
+  font-family: var(--mono);
+}
+
+[data-skin="clinical"] .legend {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+[data-skin="clinical"] .swatch { border-radius: 0; }
+
+[data-skin="clinical"] .action-bar {
+  padding: 9px 3px;
+  background: transparent;
+}
+
+/* --------------------------------------------------------------- readouts */
+/* Everything numeric goes monospaced: on a dock where three panels sit next to
+ * each other, digits that change width make the whole strip twitch. */
+[data-skin="clinical"] #dice-value {
+  font-family: var(--mono);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+[data-skin="clinical"] .headline-label {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.66rem;
+}
+[data-skin="clinical"] .meter,
+[data-skin="clinical"] .meter-fill { border-radius: 0; }
+[data-skin="clinical"] .meter { height: 7px; }
+
+[data-skin="clinical"] .metric-grid dt { font-size: 0.75rem; }
+[data-skin="clinical"] .metric-grid dd { font-size: 0.78rem; }
+[data-skin="clinical"] .interpretation,
+[data-skin="clinical"] .verdict { font-size: 0.76rem; }
+
+[data-skin="clinical"] .compare-table th,
+[data-skin="clinical"] .compare-table td { font-size: 0.72rem; }
+[data-skin="clinical"] .compare-table thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+[data-skin="clinical"] .log { font-size: 0.72rem; }
+[data-skin="clinical"] .log-item { border-radius: 0; }
+
+[data-skin="clinical"] .model-card,
+[data-skin="clinical"] .spec-sheet,
+[data-skin="clinical"] .upload-zone,
+[data-skin="clinical"] .credit-card,
+[data-skin="clinical"] .toast,
+[data-skin="clinical"] .modal { border-radius: var(--radius-sm); }
+
+[data-skin="clinical"] .model-card.loaded {
+  border-inline-start: 3px solid var(--accent);
+}
+
+[data-skin="clinical"] .upload-zone { border-style: dashed; }
+
+[data-skin="clinical"] .steps li { font-size: 0.76rem; }
+[data-skin="clinical"] .step-dot { border-radius: 0; }
+
+/* ------------------------------------------------------------- responsive */
+/* The base file's breakpoints act on .layout with the same specificity, so they
+ * have to be restated here or the dock would survive down to a phone. */
+@media (max-width: 1150px) {
+  [data-skin="clinical"] .layout {
+    grid-template-columns: 226px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(170px, 34vh);
+  }
+  [data-skin="clinical"] .column.right { flex-wrap: wrap; overflow-y: auto; }
+  [data-skin="clinical"] .column.right > .panel { flex: 1 1 240px; }
+}
+
+@media (max-width: 900px) {
+  [data-skin="clinical"] .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  [data-skin="clinical"] .column.left,
+  [data-skin="clinical"] .column.centre,
+  [data-skin="clinical"] .column.right {
+    grid-column: 1;
+    grid-row: auto;
+    flex-direction: column;
+    overflow: visible;
+    border: none;
+    border-block-start: var(--hairline) solid var(--border);
+  }
+}

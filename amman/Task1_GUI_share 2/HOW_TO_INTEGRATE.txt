@@ -1,0 +1,70 @@
+TASK 1 - CLASSICAL VESSEL SEGMENTATION
+Files for the GUI: results + how to run
+=======================================
+
+WHAT THIS IS
+A semi-automated retinal vessel segmentation method. No deep learning; runs on
+CPU. Input: a colour fundus photograph. Output: a binary vessel mask.
+
+FILES
+  results/                results for display (see below)
+  fives_pipeline.py       the pipeline (segmentation + the two operator controls)
+  operating_point.json    the tuned parameters the pipeline runs with
+
+RESULTS FOR DISPLAY
+  results/images/   ALL 200 test images (the FIVES test split). For every image:
+      <name>_input.png        input image (colour fundus photo, 512x512)
+      <name>_gt.png           ground truth mask   (white = vessel, 512x512)
+      <name>_prediction.png   our segmentation    (white = vessel, 512x512)
+    The four report cases (13_A, 54_D, 114_G, 57_D) additionally have:
+      <case>_overlay.png      prediction drawn over the image:
+                              red  = vessel found that is not in the ground truth
+                              blue = ground-truth vessel that was missed
+  results/metrics_per_image.csv   per-image numbers for all 200 images:
+                                  dice, iou, accuracy, hd95_px, precision, recall, cldice
+                                  (the project's recorded evaluation - use these, not a
+                                  recompute from the 512px display copies)
+  results/metrics_cases.csv       the same numbers for the four report cases
+  results/metrics_summary.csv     averages over the full 200-image test set
+
+RUNNING IT (only needed for live predictions)
+  pip install numpy scipy opencv-python scikit-image pillow
+
+  import sys; sys.path.insert(0, ".")
+  import cv2, numpy as np
+  from PIL import Image
+  import fives_pipeline as fp
+
+  params = fp.load_operating_point(path="operating_point.json")
+  rgb = np.asarray(Image.open("image.png").convert("RGB"), dtype=np.float32) / 255.0
+  rgb = cv2.resize(rgb, (params.size, params.size), interpolation=cv2.INTER_AREA)
+  mask = fp.segment(rgb, params)
+
+  # interactive controls: compute once, then re-render on each change
+  from dataclasses import replace
+  ctx = fp.compute_context(rgb, params)                          # ~2.6 s, once
+  mask = fp.segment_from_context(ctx, replace(params, adapt_shift=S,
+                                                      adapt_low_offset=B))  # ~0.05 s
+  # S: -6.0 .. +4.0 (step 0.25)   B: 2.0 .. 20.0 (step 0.5)
+
+PROMPT FOR AN AI ASSISTANT (copy everything between the lines to get help
+integrating this)
+----------------------------------------------------------------------
+I am adding a retinal vessel segmentation method to my GUI application. The GUI
+displays precomputed results (it does not run the model).
+
+Files I have:
+- results/images/ - all 200 test images: for each, an input image (colour fundus
+  photo), a ground truth mask, and the predicted segmentation mask (white =
+  vessel). The four report cases (13_A, 54_D, 114_G, 57_D) also have an overlay
+  image showing errors (red = extra vessel, blue = missed vessel).
+- results/metrics_per_image.csv - per-image Dice, IoU, Accuracy, HD95, Precision,
+  Recall, clDice for all 200 images.
+- results/metrics_cases.csv - the same numbers for the four report cases.
+- results/metrics_summary.csv - averages over the full 200-image test set.
+
+Please write code for my GUI so a user can pick an image (out of the 200) and
+see the input, the ground truth vessels, the segmented boundaries, and the
+metric numbers, with the four report cases highlighted as presets.
+Ask me about my GUI framework if you need to.
+----------------------------------------------------------------------

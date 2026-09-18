@@ -23,7 +23,7 @@ The routes are:
 
     GET  /                       the page itself
     GET  /api/state              models, languages, dataset counts
-    GET  /api/images             the test scans that can be picked
+    GET  /api/images             the test scans that can be picked, per dataset
     POST /api/load               load a model into memory
     POST /api/box                simulate the clinician's box from ground truth
     POST /api/predict            run a model and score the result
@@ -45,6 +45,9 @@ import numpy as np
 from flask import Flask, jsonify, request, send_file, render_template
 
 import backends
+import busi_models
+import fives_results
+import members
 import render
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -56,6 +59,13 @@ TEST_IMAGES = os.path.join(DATA_DIR, "test", "images")
 
 TUMOUR_CODES = {"gl": "glioma", "me": "meningioma", "pi": "pituitary",
                 "nt": "no_tumour"}
+
+# The group's ultrasound models were trained on BUSI, which is laid out as one
+# folder per class with the masks sitting next to the images.  The folder is
+# looked up on every request rather than once at start-up, so dropping the
+# dataset in while the server is running is enough - it does not have to be
+# restarted.
+BUSI_TEST_LIST = os.path.join(busi_models.MODEL_DIR, "per_image_seed42_pruned_tta.csv")
 
 UPLOAD_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
@@ -101,18 +111,103 @@ def handle_crash(error):
                                           "check the terminal for details"}), 500
 
 
-def safe_image_path(name):
+def fives_entry(model_id=None, task=None):
     """
-    Resolve an image the front end asked for.
+    Which of Amman's two recorded sets the GUI is talking about.
 
-    Only the BRISC test folder and our own uploads folder are allowed, so a
-    crafted name cannot be used to read files elsewhere on the machine.
+    Both sets cover the same 200 FIVES images under the same names, but the
+    input pictures differ - Task 1 recorded the colour fundus photograph and
+    Task 2 the green channel - so the entry has to be chosen deliberately
+    rather than by whichever folder is searched first.
     """
-    for folder in (TEST_IMAGES, UPLOAD_DIR):
+    if model_id:
+        entry = members.find(model_id)
+        if entry and entry["kind"] == "recorded":
+            return entry
+
+    for entry in members.ROSTER:
+        if entry["kind"] == "recorded" and (task is None or entry["task"] == task):
+            return entry
+    return None
+
+
+def image_folders(model_id=None):
+    """
+    Every folder an image is allowed to come from.
+
+    Only these are searched, so a crafted name cannot be used to read files
+    elsewhere on the machine.  The recorded folder that belongs to the loaded
+    model goes first, so the input picture shown is the one that model was
+    actually scored on.
+    """
+    folders = []
+
+    preferred = fives_entry(model_id) if model_id else None
+    if preferred:
+        folders.append(os.path.join(preferred["results_dir"], "images"))
+
+    folders.extend([TEST_IMAGES, UPLOAD_DIR])
+
+    busi_root = busi_models.dataset_dir()
+    if busi_root:
+        folders.extend(os.path.join(busi_root, cls)
+                       for cls in busi_models.BUSI_CLASSES)
+
+    for entry in members.ROSTER:
+        if entry["kind"] != "recorded":
+            continue
+        folder = os.path.join(entry["results_dir"], "images")
+        if os.path.isdir(folder) and folder not in folders:
+            folders.append(folder)
+
+    return folders
+
+
+def safe_image_path(name, model_id=None):
+    """Resolve an image the front end asked for, or refuse it."""
+    for folder in image_folders(model_id):
         candidate = os.path.realpath(os.path.join(folder, os.path.basename(name)))
         if candidate.startswith(os.path.realpath(folder)) and os.path.exists(candidate):
             return candidate
     raise ApiError("could not find that image: %s" % os.path.basename(name))
+
+
+def is_fives(path):
+    """Whether a resolved scan came out of one of the recorded results folders."""
+    resolved = os.path.realpath(path)
+    for entry in members.ROSTER:
+        if entry["kind"] != "recorded":
+            continue
+        folder = os.path.realpath(os.path.join(entry["results_dir"], "images"))
+        if resolved.startswith(folder + os.sep):
+            return entry
+    return None
+
+
+def is_busi(path):
+    """Whether a resolved scan came out of the BUSI folder."""
+    busi_root = busi_models.dataset_dir()
+    return bool(busi_root) and os.path.realpath(path).startswith(
+        os.path.realpath(busi_root) + os.sep)
+
+
+def busi_test_names():
+    """
+    The 102 scans the group's notebook reports its numbers on.
+
+    Reading them out of the per-image results file rather than repeating the
+    split here means the GUI cannot drift out of step with the notebook.
+    """
+    names = set()
+    if not os.path.exists(BUSI_TEST_LIST):
+        return names
+
+    with open(BUSI_TEST_LIST, encoding="utf-8") as handle:
+        for line in list(handle)[1:]:                  # skip the header row
+            first = line.split(",")[0].strip()
+            if first:
+                names.add(first)
+    return names
 
 
 def load_scan(path):
@@ -141,6 +236,30 @@ def truth_path_for(path):
     return os.path.join(folder, stem + ".png")
 
 
+def busi_truth(path):
+    """
+    The BUSI mask for a scan, merged when there is more than one.
+
+    Some lesions are annotated as two or three separate mask files - "_mask.png",
+    "_mask_1.png" and so on - and scoring against only the first of them would
+    count the rest of the lesion as something the model invented.
+    """
+    stem = os.path.splitext(path)[0]
+    mask_paths = sorted(glob.glob(stem + "_mask*.png"))
+    if not mask_paths:
+        return None
+
+    combined = None
+    for mask_path in mask_paths:
+        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            continue
+        mask = cv2.resize(mask, (render.SIZE, render.SIZE),
+                          interpolation=cv2.INTER_NEAREST) > 127
+        combined = mask if combined is None else (combined | mask)
+    return combined
+
+
 def load_truth(path):
     """
     The matching ground truth mask, or None when there isn't one.
@@ -149,6 +268,14 @@ def load_truth(path):
     case - it just cannot report metrics, because there is nothing to score
     against.  Saying so plainly is better than showing a number that looks real.
     """
+    if is_busi(path):
+        return busi_truth(path)
+
+    entry = is_fives(path)
+    if entry:
+        name = os.path.basename(path)[:-len("_input.png")]
+        return fives_results.truth(entry, name)
+
     mask_path = truth_path_for(path)
     if not os.path.exists(mask_path):
         return None
@@ -161,7 +288,23 @@ def load_truth(path):
 
 
 def tumour_type(name):
-    parts = os.path.basename(name).split("_")
+    """
+    The label shown next to a scan in the picker.
+
+    BRISC encodes it in the file name ("..._gl_ax_t1.jpg"); BUSI puts it at the
+    front instead ("benign (12).png").
+    """
+    base = os.path.basename(name)
+
+    for cls in busi_models.BUSI_CLASSES:
+        if base.startswith(cls):
+            return cls
+
+    if base.endswith("_input.png"):
+        # FIVES: "1_A_input.png" - the letter is the condition, not a tumour.
+        return fives_results._category_from_name(base[:-len("_input.png")])
+
+    parts = base.split("_")
     return TUMOUR_CODES.get(parts[3], "unknown") if len(parts) > 3 else "unknown"
 
 
@@ -175,6 +318,8 @@ def index():
 def state():
     """Everything the page needs to draw itself on first load."""
     models = backends.registry()
+    busi_root = busi_models.dataset_dir()
+
     return jsonify({
         "ok": True,
         "models": models,
@@ -183,17 +328,113 @@ def state():
         "palettes": list(render.PALETTES),
         "image_size": render.SIZE,
         "has_dataset": os.path.isdir(TEST_IMAGES),
+        # One entry per dataset, so the page can say which scans are actually
+        # available instead of letting a model be loaded and then failing with
+        # an empty picker.
+        "datasets": {
+            "brisc": {
+                "present": os.path.isdir(TEST_IMAGES),
+                "images": len(glob.glob(os.path.join(TEST_IMAGES, "*.jpg"))),
+                "expected_at": TEST_IMAGES,
+            },
+            "busi": {
+                "present": bool(busi_root),
+                "images": len(busi_image_paths()),
+                # Where it is if it is here, and where to put it if it is not.
+                "expected_at": busi_root or busi_models.DATASET_CANDIDATES[0],
+            },
+            # Amman's two sets cover the same 200 scans, so either one answers
+            # the question "are the retinal scans here".
+            "fives": {
+                "present": bool(fives_entry() and
+                                fives_results.available(fives_entry())),
+                "images": len(fives_results.listing(fives_entry()))
+                if fives_entry() else 0,
+                "expected_at": fives_entry()["results_dir"] if fives_entry() else "",
+            },
+        },
     })
+
+
+def busi_image_paths():
+    """Every BUSI scan, with the mask files left out."""
+    busi_root = busi_models.dataset_dir()
+    if not busi_root:
+        return []
+
+    paths = []
+    for cls in busi_models.BUSI_CLASSES:
+        for path in sorted(glob.glob(os.path.join(busi_root, cls, "*.png"))):
+            if "_mask" not in os.path.basename(path):
+                paths.append(path)
+    return paths
+
+
+def busi_listing(wanted):
+    """The BUSI half of /api/images."""
+    paths = busi_image_paths()
+    if not paths:
+        raise ApiError("no BUSI images found - put %s in the project folder"
+                       % busi_models.DATASET_NAME, 404)
+
+    evaluated = busi_test_names()
+
+    listing = []
+    for path in paths:
+        name = os.path.basename(path)
+        kind = tumour_type(name)
+
+        if wanted in busi_models.BUSI_CLASSES and kind != wanted:
+            continue
+        if wanted == "evaluated" and name not in evaluated:
+            continue
+
+        listing.append({"name": name, "tumour_type": kind,
+                        "in_test_set": name in evaluated})
+    return listing
+
+
+def fives_listing(wanted, model_id=None):
+    """
+    The FIVES half of /api/images.
+
+    The names carry the "_input.png" ending because that is the file the picker
+    will ask for later; the picker shows the condition beside it.
+    """
+    entry = fives_entry(model_id)
+    if entry is None or not fives_results.available(entry):
+        raise ApiError("no recorded FIVES results found - expected them at %s"
+                       % (entry["results_dir"] if entry else "amman/"), 404)
+
+    listing = []
+    for row in fives_results.listing(entry):
+        if wanted == fives_results.CASE_FILTER and not row["is_case"]:
+            continue
+        listing.append({"name": row["name"] + "_input.png",
+                        "tumour_type": row["tumour_type"],
+                        "in_test_set": True,
+                        "is_case": row["is_case"]})
+    return listing
 
 
 @app.route("/api/images")
 def images():
     """
-    The scans the user can pick from.
+    The scans the user can pick from, for whichever dataset was asked for.
 
-    The 200 scans Task 2 was scored on are listed first and flagged, so the demo
-    can stay on the images the reported numbers actually come from.
+    The 200 BRISC scans Task 2 was scored on - and the 102 BUSI scans the
+    group's notebook was scored on - can be filtered down to on their own, so
+    the demo can stay on the images the reported numbers actually come from.
     """
+    if request.args.get("dataset") == "busi":
+        listing = busi_listing(request.args.get("filter", "all"))
+        return jsonify({"ok": True, "images": listing, "total": len(listing)})
+
+    if request.args.get("dataset") == "fives":
+        listing = fives_listing(request.args.get("filter", "all"),
+                                request.args.get("model"))
+        return jsonify({"ok": True, "images": listing, "total": len(listing)})
+
     paths = sorted(glob.glob(os.path.join(TEST_IMAGES, "*.jpg")))
     if not paths:
         raise ApiError("no BRISC test images found at %s" % TEST_IMAGES, 404)
@@ -238,7 +479,7 @@ def load_model():
 
     info = backends.load(model_id)
     return jsonify({"ok": True, "model": model_id, "task": backends.task_of(model_id),
-                    "info": info})
+                    "dataset": backends.dataset_of(model_id), "info": info})
 
 
 @app.route("/api/box", methods=["POST"])
@@ -266,7 +507,7 @@ def predict():
     if not model_id:
         raise ApiError("load a model first")
 
-    path = safe_image_path(body.get("image", ""))
+    path = safe_image_path(body.get("image", ""), model_id)
     image = load_scan(path)
     truth = load_truth(path)
 
@@ -284,6 +525,17 @@ def predict():
     mask = result["mask"]
     scores = backends.score(mask, truth) if truth is not None else None
 
+    # A recorded entry reports the numbers that were measured when the results
+    # were produced.  Its share folder says so explicitly: the display copies are
+    # 512 px PNGs, and rescoring those would quietly disagree with the figures in
+    # the author's own report.  The GUI says which it is showing.
+    recorded = backends.recorded_entry(model_id)
+    if recorded is not None:
+        name = os.path.basename(path)[:-len("_input.png")]
+        published = fives_results.recorded_metrics(recorded, name)
+        if published:
+            scores = published
+
     CURRENT.clear()
     CURRENT.update({
         "image": image,
@@ -299,12 +551,14 @@ def predict():
         "ok": True,
         "model": model_id,
         "task": backends.task_of(model_id),
+        "dataset": backends.dataset_of(model_id),
         "image": os.path.basename(path),
         "tumour_type": tumour_type(path),
         "metrics": scores,
         "has_truth": truth is not None,
         "box": result.get("box", box),
         "latency_ms": result["latency_ms"],
+        "recorded": bool(result.get("is_recorded")),
         "round_trip_ms": total_ms,
         "predicted_pixels": int(mask.sum()),
         "truth_pixels": int(truth.sum()) if truth is not None else None,

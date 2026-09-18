@@ -1,0 +1,71 @@
+TASK 2 - DEEP-LEARNING VESSEL SEGMENTATION
+Files for the GUI: results + how to run
+========================================
+
+WHAT THIS IS
+A trained deep model (attention U-Net + clDice, structurally pruned and
+fine-tuned). Input: a colour fundus photograph. Output: a binary vessel mask.
+
+FILES
+  results/                  results for display (see below)
+  ft_pruned_longft.keras    the trained model
+  preprocessing.py          the exact preprocessing used in training
+
+RESULTS FOR DISPLAY
+  results/images/   ALL 200 test images (the FIVES test split). For every image:
+      <name>_input.png                input image (green channel, 512x512)
+      <name>_gt.png                   ground truth mask (white = vessel, 512x512)
+      <name>_prediction_benchmark.png segmentation, benchmark model (512x512)
+      <name>_prediction_proposed.png  segmentation, proposed model (512x512)
+      <name>_prediction_pruned.png    segmentation, pruned model (512x512)
+    The five report cases (50_A, 69_D, 122_G, 123_G, 5_A) additionally have:
+      <case>_overlay_<model>.png      errors drawn over the image:
+                                      green = agreement (correct vessel)
+                                      red   = missed vessel
+                                      blue  = extra vessel
+  results/metrics_per_image.csv   per-image numbers for all 200 images x 3 models:
+                                  dice, iou, hd95, cldice, precision, recall,
+                                  specificity, accuracy
+  results/metrics_cases.csv       the same numbers for the five report cases
+  results/metrics_summary.csv     whole-test-set numbers per model, including
+                                  model size and latency
+
+MODEL VARIANTS
+  benchmark = PSO U-Net (baseline)
+  proposed  = Attention U-Net + clDice (the proposed architecture)
+  pruned    = structured pruned + fine-tuned (final model; smallest and fastest)
+
+RUNNING IT (only needed for live predictions)
+  pip install "tensorflow>=2.16"
+  import tensorflow as tf
+  from preprocessing import decode_image, resize_image, normalize_image
+  model = tf.keras.models.load_model("ft_pruned_longft.keras", compile=False)
+  x = normalize_image(resize_image(decode_image("image.png"), (512, 512)))
+  prob = model(x[None], training=False).numpy()[0, ..., 0]
+  mask = prob > 0.5
+  # the checkpoint is a standard Keras 3 model file: it loads in a stock
+  # TensorFlow >= 2.16 install, no extra compatibility flags needed
+  # (verified on TensorFlow 2.20).
+
+PROMPT FOR AN AI ASSISTANT (copy everything between the lines to get help
+integrating this)
+----------------------------------------------------------------------
+I am adding a deep-learning retinal vessel segmentation model to my GUI
+application. The GUI displays precomputed results (it does not run the model).
+
+Files I have:
+- results/images/ - all 200 test images: for each, an input image (green
+  channel), a ground truth mask, and segmentation masks for three model
+  variants (benchmark / proposed / pruned; white = vessel). The five report
+  cases (50_A, 69_D, 122_G, 123_G, 5_A) also have overlay images showing errors
+  (green = agreement, red = missed, blue = extra).
+- results/metrics_per_image.csv - per-image Dice, IoU, HD95, clDice, Precision,
+  Recall, Specificity, Accuracy for all 200 images and all three models.
+- results/metrics_cases.csv - the same numbers for the five report cases.
+- results/metrics_summary.csv - whole-test-set numbers per model.
+
+Please write code for my GUI so a user can pick an image (out of the 200) and a
+model variant and see the ground truth image, the segmented boundaries, and the
+metric numbers, with the five report cases highlighted as presets.
+Ask me about my GUI framework if you need to.
+----------------------------------------------------------------------

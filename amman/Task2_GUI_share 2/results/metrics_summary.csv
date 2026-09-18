@@ -1,0 +1,40 @@
+model,metric,value,sd
+PSO U-Net (benchmark),Dice (per image),0.619799,0.215508
+PSO U-Net (benchmark),Dice (global),0.688753,
+PSO U-Net (benchmark),IoU (per image),0.479335,0.197461
+PSO U-Net (benchmark),HD95 (px),50.2097,61.0458
+PSO U-Net (benchmark),clDice,0.624779,0.210138
+PSO U-Net (benchmark),Precision (per image),0.934914,0.138818
+PSO U-Net (benchmark),Recall (per image),0.491901,0.204676
+PSO U-Net (benchmark),Accuracy (per image),0.965323,0.00991654
+PSO U-Net (benchmark),Tunable parameters,7771297,
+PSO U-Net (benchmark),Model size (MB),29.6451,
+PSO U-Net (benchmark),"FLOPs (measured, 512x512, b1)",96491291904,
+PSO U-Net (benchmark),"Latency GPU T4 (ms/img, b8)",33.6374,
+PSO U-Net (benchmark),"Latency CPU (ms/img, b8)",1026.35,
+Attention U-Net + clDice (proposed),Dice (per image),0.748923,0.18803
+Attention U-Net + clDice (proposed),Dice (global),0.803844,
+Attention U-Net + clDice (proposed),IoU (per image),0.626367,0.187978
+Attention U-Net + clDice (proposed),HD95 (px),30.5768,47.6041
+Attention U-Net + clDice (proposed),clDice,0.747994,0.193568
+Attention U-Net + clDice (proposed),Precision (per image),0.870323,0.0759996
+Attention U-Net + clDice (proposed),Recall (per image),0.697967,0.218325
+Attention U-Net + clDice (proposed),Accuracy (per image),0.973965,0.00765828
+Attention U-Net + clDice (proposed),Tunable parameters,8280485,
+Attention U-Net + clDice (proposed),Model size (MB),31.5875,
+Attention U-Net + clDice (proposed),"FLOPs (measured, 512x512, b1)",104201607616,
+Attention U-Net + clDice (proposed),"Latency GPU T4 (ms/img, b8)",44.4233,
+Attention U-Net + clDice (proposed),"Latency CPU (ms/img, b8)",1394.55,
+Structured pruned + fine-tune (final),Dice (per image),0.8770726918053272,0.10519762371809244
+Structured pruned + fine-tune (final),Dice (global),0.8981849332226998,
+Structured pruned + fine-tune (final),IoU (per image),0.7922258634552347,0.12286380513392414
+Structured pruned + fine-tune (final),HD95 (px),9.09327916908597,23.08535461991963
+Structured pruned + fine-tune (final),clDice,0.8873645134341643,0.10865146060403275
+Structured pruned + fine-tune (final),Precision (per image),0.9077762780602456,0.0396192796188031
+Structured pruned + fine-tune (final),Recall (per image),0.8606565130574719,0.12918480752769557
+Structured pruned + fine-tune (final),Accuracy (per image),0.9856976890563964,0.0055653058199042005
+Structured pruned + fine-tune (final),Tunable parameters,2076117,
+Structured pruned + fine-tune (final),Model size (MB),7.919757843017578,
+Structured pruned + fine-tune (final),"FLOPs (measured, 512x512, b1)",26197402848,
+Structured pruned + fine-tune (final),"Latency GPU T4 (ms/img, b8)",20.784432312439094,
+Structured pruned + fine-tune (final),"Latency CPU (ms/img, b8)",620.2230644375959,

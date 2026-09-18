@@ -187,7 +187,10 @@ def side_by_side(image, truth, prediction, colours):
         draw_outline(as_colour(image), prediction, colours["prediction"]),
     ]
 
-    labels = ["MRI", "Ground truth", "Prediction"]
+    # "Scan" rather than "MRI": the group's ultrasound models go through the same
+    # export, and labelling a breast ultrasound as an MRI in a report figure is
+    # exactly the kind of mistake nobody notices until it is printed.
+    labels = ["Scan", "Ground truth", "Prediction"]
     for panel, label in zip(panels, labels):
         cv2.putText(panel, label, (10, 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                     (255, 255, 255), 1, cv2.LINE_AA)

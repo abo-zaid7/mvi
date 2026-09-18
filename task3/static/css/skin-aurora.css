@@ -1,0 +1,367 @@
+/*
+ * Skin: Aurora.
+ *
+ * Loaded on top of style.css, never instead of it - see skin-clinical.css for
+ * why the token blocks carry the [data-skin] attribute.
+ *
+ * This one is for showing the work rather than doing the work: a dark violet
+ * room with a soft aurora behind it, frosted translucent panels, and one
+ * cyan-to-violet gradient used for every accent so the eye follows the same
+ * colour from the primary button to the Dice bar.  The layout puts the scan
+ * first - it fills the whole starting side at full height, and everything that
+ * is not the scan stacks into one column beside it, set-up above results.
+ *
+ * The frosted panels lean on backdrop-filter.  Where a browser does not support
+ * it the translucent background alone still reads correctly, just flatter.
+ */
+
+/* ------------------------------------------------------------------ tokens */
+:root[data-skin="aurora"] {
+  --bg: #07060f;
+  --surface: rgba(28, 26, 51, 0.62);
+  --raised: rgba(255, 255, 255, 0.06);
+  --raised-hover: rgba(255, 255, 255, 0.11);
+  --border: rgba(173, 180, 255, 0.16);
+  --border-strong: rgba(173, 180, 255, 0.34);
+  --text: #f2f0ff;
+  --text-muted: #b3aed4;
+  --text-faint: #857fa8;
+
+  --accent: #4cd9ee;
+  --accent-dim: #29b9d6;
+  --accent-ink: #06131a;
+  --accent-wash: rgba(76, 217, 238, 0.14);
+
+  --task1: #ffc857;
+  --task2: #9d8cff;
+
+  --good: #4ade9c;
+  --warn: #ffc857;
+  --bad: #ff6f91;
+  --info: #9d8cff;
+
+  --radius: 18px;
+  --radius-sm: 11px;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+
+  /* One gradient, reused: button, active tab, meter, headline number. */
+  --sheen: linear-gradient(115deg, #4cd9ee 0%, #7f8cff 52%, #c86bff 100%);
+  --glow: 0 0 22px rgba(88, 178, 255, 0.34);
+  --glass-blur: blur(18px) saturate(140%);
+}
+
+:root[data-skin="aurora"][data-theme="light"] {
+  --bg: #eceafb;
+  --surface: rgba(255, 255, 255, 0.72);
+  --raised: rgba(101, 94, 168, 0.08);
+  --raised-hover: rgba(101, 94, 168, 0.14);
+  --border: rgba(86, 76, 158, 0.18);
+  --border-strong: rgba(86, 76, 158, 0.36);
+  --text: #191533;
+  --text-muted: #574f7d;
+  --text-faint: #7a719f;
+
+  --accent: #0d7f9c;
+  --accent-dim: #0a6580;
+  --accent-ink: #ffffff;
+  --accent-wash: rgba(13, 127, 156, 0.12);
+
+  --task1: #a35a00;
+  --task2: #5b45c9;
+
+  --good: #12875c;
+  --warn: #9a6100;
+  --bad: #c62f56;
+  --info: #5b45c9;
+
+  --shadow: 0 16px 38px rgba(60, 48, 120, 0.16);
+  --glow: 0 0 18px rgba(80, 120, 220, 0.22);
+
+  /* The dark theme's gradient is far too pale to read as text or as a filled
+   * button once the background is white, so daylight gets its own darker one. */
+  --sheen: linear-gradient(115deg, #0d7f9c 0%, #4f46d6 55%, #9026cf 100%);
+}
+
+/* Glass is the first thing to go when somebody asks for higher contrast: solid
+ * panels, opaque borders, no blur. */
+:root[data-skin="aurora"][data-contrast="high"] {
+  --surface: #14122a;
+  --raised: #1f1c3d;
+  --raised-hover: #2a2650;
+  --border: #7d78b5;
+  --border-strong: #a8a4d8;
+  --text: #ffffff;
+  --text-muted: #e4e1f7;
+  --text-faint: #c3bfe2;
+  --glass-blur: none;
+}
+
+:root[data-skin="aurora"][data-theme="light"][data-contrast="high"] {
+  --surface: #ffffff;
+  --raised: #eeecfa;
+  --raised-hover: #e2dff5;
+  --border: #6e669e;
+  --border-strong: #443c78;
+  --text: #000000;
+  --text-muted: #221d3d;
+  --text-faint: #3c3560;
+  --glass-blur: none;
+}
+
+/* ------------------------------------------------------- the room behind it */
+[data-skin="aurora"] body { background: var(--bg); }
+
+/* A fixed layer rather than a background on body, so it never scrolls with the
+ * columns and never gets in front of anything. */
+[data-skin="aurora"] body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 44% at 18% 14%, rgba(76, 217, 238, 0.26), transparent 68%),
+    radial-gradient(42% 46% at 82% 22%, rgba(200, 107, 255, 0.22), transparent 70%),
+    radial-gradient(52% 50% at 50% 96%, rgba(127, 140, 255, 0.20), transparent 72%);
+  filter: blur(24px);
+  animation: aurora-drift 34s ease-in-out infinite alternate;
+}
+
+/* Slow enough to be scenery rather than movement; the reduce-animation switch in
+ * the base stylesheet stops it outright. */
+@keyframes aurora-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
+}
+
+:root[data-skin="aurora"][data-contrast="high"] body::before { display: none; }
+
+/* Over a white page the same washes disappear almost completely, so daylight
+ * gets stronger tints - still scenery, but visibly there. */
+:root[data-skin="aurora"][data-theme="light"] body::before {
+  background:
+    radial-gradient(38% 44% at 18% 14%, rgba(13, 165, 199, 0.30), transparent 68%),
+    radial-gradient(42% 46% at 82% 22%, rgba(178, 90, 240, 0.26), transparent 70%),
+    radial-gradient(52% 50% at 50% 96%, rgba(96, 110, 240, 0.24), transparent 72%);
+}
+
+/* ------------------------------------------------------------------ layout */
+/* Scan on the starting side at full height; one stacked column beside it with
+ * set-up above and results below. */
+[data-skin="aurora"] .layout {
+  grid-template-columns: minmax(0, 1fr) 372px;
+  /* The set-up column carries six model cards now, so it gets the larger share
+   * of the sidebar - results are three or four lines until a model has run. */
+  grid-template-rows: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+}
+
+[data-skin="aurora"] .column.centre {
+  grid-column: 1;
+  grid-row: 1 / -1;
+}
+[data-skin="aurora"] .column.left  { grid-column: 2; grid-row: 1; }
+[data-skin="aurora"] .column.right { grid-column: 2; grid-row: 2; }
+
+/* ------------------------------------------------------------------ chrome */
+[data-skin="aurora"] .panel {
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 15px;
+}
+
+[data-skin="aurora"] .topbar {
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-block-end: 1px solid var(--border);
+  padding: 11px 18px;
+}
+
+[data-skin="aurora"] .brand-mark {
+  color: var(--accent);
+  filter: drop-shadow(var(--glow));
+}
+[data-skin="aurora"] .brand-text h1 {
+  font-size: 1.06rem;
+  letter-spacing: 0.01em;
+  background: var(--sheen);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-skin="aurora"] .panel-head h3 {
+  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+[data-skin="aurora"] .button {
+  border-radius: 999px;
+  padding-inline: 15px;
+}
+[data-skin="aurora"] .button.small { border-radius: 999px; }
+[data-skin="aurora"] .button.primary {
+  background: var(--sheen);
+  color: var(--accent-ink);
+  border-color: transparent;
+  box-shadow: var(--glow);
+  font-weight: 600;
+}
+[data-skin="aurora"] .button.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  box-shadow: 0 0 30px rgba(88, 178, 255, 0.5);
+}
+[data-skin="aurora"] .button.primary kbd {
+  background: rgba(0, 0, 0, 0.22);
+  border-color: rgba(0, 0, 0, 0.25);
+  color: inherit;
+}
+
+[data-skin="aurora"] select,
+[data-skin="aurora"] input[type="text"] {
+  border-radius: 999px;
+  padding-inline: 12px;
+  background: var(--raised);
+}
+
+[data-skin="aurora"] .count,
+[data-skin="aurora"] .badge { border: 1px solid var(--border); }
+
+/* --------------------------------------------------------------- the scan */
+[data-skin="aurora"] .viewer-panel { padding: 15px; }
+
+[data-skin="aurora"] .stage {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: #05040c;
+  box-shadow: inset 0 0 60px rgba(88, 178, 255, 0.08);
+  min-height: 420px;
+}
+
+[data-skin="aurora"] .view-tabs {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+}
+[data-skin="aurora"] .view-tabs button { border-radius: 999px; padding: 6px 13px; }
+[data-skin="aurora"] .view-tabs button.active {
+  background: var(--sheen);
+  color: var(--accent-ink);
+  box-shadow: var(--glow);
+}
+
+[data-skin="aurora"] .legend {
+  background: var(--raised);
+  border-radius: 999px;
+  padding: 6px 13px;
+}
+[data-skin="aurora"] .swatch { box-shadow: 0 0 9px currentColor; }
+
+[data-skin="aurora"] .action-bar { padding: 13px 15px; }
+[data-skin="aurora"] .action-run .button.primary {
+  padding: 11px 24px;
+  font-size: 0.92rem;
+}
+
+/* --------------------------------------------------------------- readouts */
+/* The Dice score is the number the marking criteria are written against, so in
+ * this skin it is the brightest thing on the page after the scan. */
+[data-skin="aurora"] #dice-value {
+  font-size: 2.9rem;
+  font-weight: 700;
+  background: var(--sheen);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+[data-skin="aurora"] .headline-label {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.67rem;
+}
+
+[data-skin="aurora"] .meter {
+  height: 9px;
+  border-radius: 999px;
+  background: var(--raised);
+  overflow: hidden;
+}
+[data-skin="aurora"] .meter-fill { border-radius: 999px; box-shadow: var(--glow); }
+
+[data-skin="aurora"] .metric-grid dd { font-weight: 600; }
+
+[data-skin="aurora"] .model-card {
+  background: var(--raised);
+  border-radius: var(--radius-sm);
+}
+
+/* The base file gives the model list its own 292px scroll window, which made
+ * sense for four models inside a full-height column.  With six cards in a
+ * half-height sidebar it puts a scrollbar inside a scrollbar, so here the list
+ * grows to its natural height and the sidebar is the only thing that scrolls. */
+[data-skin="aurora"] .model-list {
+  max-height: none;
+  overflow: visible;
+}
+[data-skin="aurora"] .model-card.loaded {
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+
+[data-skin="aurora"] .upload-zone {
+  border-radius: var(--radius-sm);
+  border-style: dashed;
+  background: var(--raised);
+}
+
+[data-skin="aurora"] .step-dot { box-shadow: 0 0 10px currentColor; }
+[data-skin="aurora"] .steps li.next { color: var(--accent); }
+
+[data-skin="aurora"] .log-item,
+[data-skin="aurora"] .toast,
+[data-skin="aurora"] .spec-sheet,
+[data-skin="aurora"] .credit-card { border-radius: var(--radius-sm); }
+
+[data-skin="aurora"] .modal {
+  border-radius: var(--radius);
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow);
+}
+[data-skin="aurora"] .modal::backdrop {
+  background: rgba(7, 6, 15, 0.62);
+  backdrop-filter: blur(4px);
+}
+
+/* ------------------------------------------------------------- responsive */
+/* Same reason as the other skin: the base breakpoints target .layout with the
+ * same specificity, so they have to be restated rather than inherited. */
+@media (max-width: 1150px) {
+  [data-skin="aurora"] .layout {
+    grid-template-columns: minmax(0, 1fr) 310px;
+  }
+  [data-skin="aurora"] .stage { min-height: 340px; }
+}
+
+@media (max-width: 900px) {
+  [data-skin="aurora"] .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+  [data-skin="aurora"] .column.centre,
+  [data-skin="aurora"] .column.left,
+  [data-skin="aurora"] .column.right {
+    grid-column: 1;
+    grid-row: auto;
+    overflow: visible;
+  }
+  [data-skin="aurora"] body::before { animation: none; }
+}

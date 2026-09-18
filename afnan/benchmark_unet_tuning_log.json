@@ -1,0 +1,9 @@
+{
+  "best_hp": {
+    "filters": 16,
+    "dropout": 0.2608110498692136,
+    "activation": "elu",
+    "lr": 0.0002983348211426744
+  },
+  "note": "filters capped to fix overfitting"
+}

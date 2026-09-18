@@ -1,0 +1,35 @@
+[
+  {
+    "model": "Benchmark (residual U-Net)",
+    "params": 2033025,
+    "nonzero": 2033025,
+    "sparsity_pct": 0.0,
+    "gflops": 6.4568106,
+    "latency_ms_mean": 110.4043735996432,
+    "latency_ms_median": 87.62808299798053,
+    "latency_ms_std": 67.26352926566771,
+    "file_mb": 8.0564603805542
+  },
+  {
+    "model": "Innovation (unpruned)",
+    "params": 900569,
+    "nonzero": 900568,
+    "sparsity_pct": 0.00011104090858113037,
+    "gflops": 5.79795473,
+    "latency_ms_mean": 84.71204167290125,
+    "latency_ms_median": 51.99533350241836,
+    "latency_ms_std": 99.5273601497077,
+    "file_mb": 3.7735671997070312
+  },
+  {
+    "model": "Innovation (pruned)",
+    "params": 900569,
+    "nonzero": 630644,
+    "sparsity_pct": 29.972717248761615,
+    "gflops": 5.79795473,
+    "latency_ms_mean": 64.49115430489958,
+    "latency_ms_median": 48.55627099459525,
+    "latency_ms_std": 77.4852324924032,
+    "file_mb": 3.7650585174560547
+  }
+]

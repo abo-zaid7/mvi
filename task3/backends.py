@@ -11,8 +11,15 @@ gives the web server one common interface to run any of them:
 
 Task 2 models are TensorFlow and run inside this process.  Task 1 is a
 scikit-learn forest that cannot be unpickled here (see task1_worker.py), so it
-runs in a child process and this module talks to it over a pipe.  Both routes
+runs in a child process and this module talks to it over a pipe.  All routes
 come back looking the same to the caller.
+
+Three students, three datasets, one list.  members.py names who owns each of
+the six models and what has to happen to run it - Salman's are BRISC 2025 brain
+MRI, Afnan's are BUSI breast ultrasound through busi_models.py and her ported
+Task 1 pipeline, and Aman's are FIVES retinal scans read back from recorded
+results by fives_results.py.  Every entry in the registry says which dataset it
+belongs to, and the GUI offers the matching scans.
 """
 
 import glob
@@ -37,6 +44,10 @@ sys.path.insert(0, TASK2_DIR)
 import config as task2_config     # noqa: E402
 import metrics                    # noqa: E402  (task2/metrics.py - see below)
 
+import busi_models                 # noqa: E402  (Afnan's ultrasound networks)
+import fives_results               # noqa: E402  (Amman's recorded FIVES results)
+import members                     # noqa: E402  (who owns which model)
+
 # Both tasks ship an identical metrics module so each folder can run standalone.
 # The GUI deliberately uses one of them for everything, so a Task 1 score and a
 # Task 2 score in the interface are always produced by the same code.
@@ -54,8 +65,8 @@ KNOWN = {
                        "residual U-Net, self-attention, dual attention gates"),
     "mha_resunet_pruned.h5": ("MHA-ResUNet (pruned)",
                               "40% of channels removed, 66% fewer FLOPs"),
-    "unet_pso.h5": ("U-Net (PSO-tuned baseline)",
-                    "conventional U-Net, hyperparameters tuned by PSO"),
+    "unet_pso.h5": ("U-Net (GWO-tuned baseline)",
+                    "conventional U-Net, hyperparameters tuned by GWO"),
 }
 
 
@@ -265,38 +276,80 @@ TASK1 = Task1Bridge()
 TASK2 = Task2Runner()
 
 
-def describe(path, task):
-    name, note = KNOWN.get(os.path.basename(path),
-                           (os.path.basename(path), "user supplied model"))
+def describe(entry):
+    """One roster entry in the shape the front end draws a card from."""
+    kind = entry["kind"]
+
+    if kind == "recorded":
+        label = os.path.basename(os.path.dirname(entry["results_dir"]))
+        size_mb = None
+    elif kind == "afnan_task1":
+        label = "afnan_task1.py"
+        size_mb = None
+    else:
+        label = os.path.basename(entry["id"])
+        size_mb = (round(os.path.getsize(entry["id"]) / (1024 * 1024), 2)
+                   if os.path.exists(entry["id"]) else None)
+
     return {
-        "id": path,
-        "name": name,
-        "note": note,
-        "task": task,
-        "file": os.path.basename(path),
-        "size_mb": round(os.path.getsize(path) / (1024 * 1024), 2),
-        "loaded": path in TASK2.models or TASK1.loaded_path == path,
+        "id": entry["id"],
+        "name": entry["name"],
+        "note": entry["note"],
+        "task": entry["task"],
+        "dataset": entry["dataset"],
+        "file": label,
+        "size_mb": size_mb,
+        "recorded": kind == "recorded",
+        "needs_box": entry["needs_box"],
+        "available": members.present(entry),
+        "loaded": entry["id"] in LOADED,
     }
 
 
 def registry():
-    """Every model the GUI can offer, newest task last so Task 1 lists first."""
-    found = []
-    for path in sorted(glob.glob(os.path.join(TASK1_MODEL_DIR, "*.joblib"))):
-        if not os.path.basename(path).startswith("_"):     # skip scratch files
-            found.append(describe(path, 1))
-    for path in sorted(glob.glob(os.path.join(TASK2_MODEL_DIR, "*.h5"))):
-        found.append(describe(path, 2))
-    return found
+    """
+    The six models the GUI offers: one Task 1 and one Task 2 per student.
+
+    Ordered task first and then by author, which is the order the report
+    chapters are in.  Anything else on disk can still be loaded by typing its
+    path into the "load another model file" box - it is left out of the list so
+    the six that are being marked are the six that are shown.
+    """
+    return [describe(entry) for entry in members.ROSTER]
+
+
+def dataset_of(model_id):
+    """Which dataset a model expects, which decides the scans the GUI offers."""
+    entry = members.find(model_id)
+    if entry:
+        return entry["dataset"]
+    return "busi" if model_id.endswith(".keras") else "brisc"
 
 
 def task_of(model_id):
-    """Which task a model belongs to, decided by its file extension."""
+    """Which task a model belongs to."""
+    entry = members.find(model_id)
+    if entry:
+        return entry["task"]
     if model_id.endswith(".joblib"):
         return 1
-    if model_id.endswith(".h5"):
+    if model_id.endswith((".h5", ".keras")):
         return 2
-    raise ModelError("unrecognised model file - expected .joblib or .h5")
+    raise ModelError("unrecognised model file - expected .joblib, .h5 or .keras")
+
+
+def needs_box(model_id):
+    """Whether this model is the semi-automated one that waits for a box."""
+    entry = members.find(model_id)
+    if entry:
+        return entry["needs_box"]
+    return task_of(model_id) == 1
+
+
+def recorded_entry(model_id):
+    """The roster entry if this id is one of the recorded ones, else None."""
+    entry = members.find(model_id)
+    return entry if entry and entry["kind"] == "recorded" else None
 
 
 def check_path(model_id):
@@ -314,16 +367,41 @@ def check_path(model_id):
     return resolved
 
 
+# Which roster ids the user has loaded this session.  A recorded entry and a
+# ported pipeline have nothing to hold in memory, so "loaded" is the only thing
+# that distinguishes them from not having been chosen yet.
+LOADED = set()
+
+
 def load(model_id):
     """Load a model and return a spec sheet for the GUI to display."""
-    path = check_path(model_id)
     started = time.time()
+    entry = members.find(model_id)
+    kind = entry["kind"] if entry else None
 
-    if task_of(path) == 1:
-        info = TASK1.load(path)
+    if kind == "recorded":
+        if not fives_results.available(entry):
+            raise ModelError("%s's recorded results were not found at %s"
+                             % (entry["name"].title(), entry["results_dir"]))
+        info = fives_results.spec_sheet(entry)
+
+    elif kind == "afnan_task1":
+        import afnan_task1
+        info = afnan_task1.spec_sheet()
+
     else:
-        info = TASK2.load(path)
+        path = check_path(model_id)
+        if task_of(path) == 1:
+            info = TASK1.load(path)
+        elif dataset_of(path) == "busi":
+            try:
+                info = busi_models.RUNNER.load(path)
+            except busi_models.BusiError as error:
+                raise ModelError(str(error))
+        else:
+            info = TASK2.load(path)
 
+    LOADED.add(model_id)
     info["load_seconds"] = round(time.time() - started, 2)
     return info
 
@@ -336,6 +414,23 @@ def predict(model_id, image_path, image, box=None, want_probabilities=False):
     return a 512 x 512 boolean mask so the metrics and the overlays downstream
     do not care which one produced it.
     """
+    entry = members.find(model_id)
+    kind = entry["kind"] if entry else None
+
+    if kind == "recorded":
+        name = os.path.splitext(os.path.basename(image_path))[0]
+        if name.endswith("_input"):
+            name = name[:-len("_input")]
+        reply = fives_results.prediction(entry, name)
+        if reply is None:
+            raise ModelError("there is no recorded prediction for %s - pick one "
+                             "of the images this model was scored on" % name)
+        return reply
+
+    if kind == "afnan_task1":
+        import afnan_task1
+        return afnan_task1.segment(image)
+
     model_path = check_path(model_id)
 
     if task_of(model_path) == 1:
@@ -350,6 +445,16 @@ def predict(model_id, image_path, image, box=None, want_probabilities=False):
         if reply.get("probability_png"):
             result["probabilities"] = decode_probabilities(reply["probability_png"])
         return result
+
+    if dataset_of(model_path) == "busi":
+        # These models are given the file rather than the 512 x 512 array: their
+        # pipeline pads the original to a square instead of stretching it, so it
+        # needs the scan at its real proportions.
+        try:
+            return busi_models.RUNNER.predict(model_path, image_path,
+                                              want_probabilities)
+        except busi_models.BusiError as error:
+            raise ModelError(str(error))
 
     return TASK2.predict(model_path, image, want_probabilities)
 

@@ -12,9 +12,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Brain Tumour Segmentation - Machine Vision Group Assignment</title>
+  <title>Medical Image Segmentation - Machine Vision Group Assignment</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <!--
+    Skins.  style.css above is the original interface and is always loaded; a
+    skin is an extra stylesheet layered on top of it, so choosing "Original"
+    simply loads nothing extra and nothing about the first design has changed.
+
+    This runs in the head rather than in app.js on purpose - a skin applied
+    after the first paint would show the original interface for a frame and
+    then swap, which looks like a fault.  ?skin=aurora in the address bar wins
+    over the saved preference, which is the quickest way to show one design and
+    then the other without going through the settings window.
+  -->
+  <script>
+    (function () {
+      var known = ["original", "clinical", "aurora"];
+      var name = new URLSearchParams(window.location.search).get("skin");
+      if (!name) {
+        try {
+          name = JSON.parse(window.localStorage.getItem("mvi-gui-settings") || "{}").skin;
+        } catch (error) {
+          /* A corrupt entry just means the original design. */
+        }
+      }
+      if (known.indexOf(name) === -1) name = "aurora";   /* the group's choice */
+      document.documentElement.dataset.skin = name;
+      document.documentElement.dataset.skinBase = "{{ url_for('static', filename='css/') }}";
+      if (name !== "original") {
+        var link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.id = "skin-css";
+        link.href = document.documentElement.dataset.skinBase + "skin-" + name + ".css";
+        document.head.appendChild(link);
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -29,8 +64,8 @@
       <circle cx="16" cy="17" r="4" fill="currentColor"/>
     </svg>
     <div class="brand-text">
-      <h1 data-i18n="app.title">Brain Tumour Segmentation</h1>
-      <p data-i18n="app.subtitle">Task 1 and Task 2 models, one interface</p>
+      <h1 data-i18n="app.title">Medical Image Segmentation</h1>
+      <p data-i18n="app.subtitle">Three datasets, six models, one interface</p>
     </div>
   </div>
 
@@ -146,8 +181,8 @@
       <details class="custom-model">
         <summary data-i18n="models.custom">Load another model file</summary>
         <p class="hint" data-i18n="models.custom.hint">
-          A path inside the project folder. Use .joblib for a Task 1 forest or
-          .h5 for a Task 2 network.
+          A path inside the project folder. Use .joblib for a Task 1 forest,
+          .h5 for a Task 2 network, or .keras for one of the ultrasound models.
         </p>
         <div class="row">
           <input type="text" id="custom-path" spellcheck="false"
@@ -170,14 +205,20 @@
         <span class="count" id="image-count"></span>
       </div>
 
+      <p class="hint" id="dataset-note"></p>
+
       <label class="field">
         <span data-i18n="images.filter">Show</span>
         <select id="image-filter">
-          <option value="evaluated" data-i18n="images.filter.evaluated">The 200 evaluated scans</option>
+          <option value="evaluated" data-i18n="images.filter.evaluated">The evaluated scans only</option>
           <option value="all" data-i18n="images.filter.all">All test scans</option>
-          <option value="glioma" data-i18n="tumour.glioma">Glioma</option>
-          <option value="meningioma" data-i18n="tumour.meningioma">Meningioma</option>
-          <option value="pituitary" data-i18n="tumour.pituitary">Pituitary</option>
+          <option value="glioma" data-i18n="tumour.glioma" data-dataset="brisc">Glioma</option>
+          <option value="meningioma" data-i18n="tumour.meningioma" data-dataset="brisc">Meningioma</option>
+          <option value="pituitary" data-i18n="tumour.pituitary" data-dataset="brisc">Pituitary</option>
+          <option value="benign" data-i18n="tumour.benign" data-dataset="busi">Benign</option>
+          <option value="malignant" data-i18n="tumour.malignant" data-dataset="busi">Malignant</option>
+          <option value="normal" data-i18n="tumour.normal" data-dataset="busi">Normal</option>
+          <option value="cases" data-i18n="images.filter.cases" data-dataset="fives">The report cases only</option>
         </select>
       </label>
 
@@ -411,6 +452,19 @@
     <div class="modal-body">
       <p class="hint" data-i18n="settings.intro">
         These preferences are remembered in this browser.
+      </p>
+
+      <label class="field">
+        <span data-i18n="settings.skin">Interface design</span>
+        <select id="skin">
+          <option value="original" data-i18n="settings.skin.original">Original</option>
+          <option value="clinical" data-i18n="settings.skin.clinical">Clinical workstation</option>
+          <option value="aurora" data-i18n="settings.skin.aurora">Aurora</option>
+        </select>
+      </label>
+      <p class="hint" data-i18n="settings.skin.hint">
+        Three designs of the same interface. Every control, keyboard shortcut and
+        result is identical in all three - only the look and the arrangement change.
       </p>
 
       <label class="field">

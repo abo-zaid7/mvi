@@ -1,0 +1,16 @@
+case,category,model,dice,hd95,iou,cldice,precision,recall,specificity,accuracy
+50_A,AMD,PSO U-Net (benchmark),0.8120,14.87,0.6834,0.8199,0.9842,0.6910,0.9991,0.9762
+50_A,AMD,Attention U-Net + clDice (proposed),0.8750,6.32,0.7777,0.8928,0.8735,0.8764,0.9898,0.9814
+50_A,AMD,Structured pruned + fine-tune (final),0.9458,1.00,0.8971,0.9507,0.9484,0.9432,0.9959,0.9920
+69_D,Diabetic Retinopathy,PSO U-Net (benchmark),0.8060,15.62,0.6750,0.8060,0.9812,0.6838,0.9987,0.9710
+69_D,Diabetic Retinopathy,Attention U-Net + clDice (proposed),0.8840,7.00,0.7922,0.8938,0.8901,0.8780,0.9895,0.9797
+69_D,Diabetic Retinopathy,Structured pruned + fine-tune (final),0.9424,1.00,0.8912,0.9519,0.9517,0.9334,0.9954,0.9900
+122_G,Glaucoma,PSO U-Net (benchmark),0.0000,200.25,0.0000,0.0000,0.0000,0.0000,0.9996,0.9922
+122_G,Glaucoma,Attention U-Net + clDice (proposed),0.0000,,0.0000,0.0000,,0.0000,1.0000,0.9926
+122_G,Glaucoma,Structured pruned + fine-tune (final),0.0325,168.14,0.0165,0.0564,0.8000,0.0166,1.0000,0.9927
+123_G,Glaucoma,PSO U-Net (benchmark),0.0000,249.02,0.0000,0.0000,0.0000,0.0000,0.9986,0.9816
+123_G,Glaucoma,Attention U-Net + clDice (proposed),0.0000,,0.0000,0.0000,,0.0000,1.0000,0.9830
+123_G,Glaucoma,Structured pruned + fine-tune (final),0.1120,121.66,0.0593,0.1177,0.8585,0.0599,0.9998,0.9839
+5_A,AMD,PSO U-Net (benchmark),0.8407,10.77,0.7252,0.8144,0.9516,0.7529,0.9956,0.9706
+5_A,AMD,Attention U-Net + clDice (proposed),0.8791,4.24,0.7843,0.8823,0.8602,0.8989,0.9832,0.9746
+5_A,AMD,Structured pruned + fine-tune (final),0.9303,1.00,0.8697,0.9189,0.9236,0.9371,0.9911,0.9856

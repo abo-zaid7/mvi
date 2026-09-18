@@ -25,3 +25,24 @@ __pycache__/
 
 # Per-machine Claude Code settings, not part of the assignment.
 .claude/settings.local.json
+
+# ---------------------------------------------------------------- group work
+# Afnan's folder arrived with her own environment, her copy of the dataset and
+# about thirty Keras checkpoints.  None of the three belongs in the repository:
+# the environment is rebuilt from requirements, BUSI is a Kaggle download that
+# is not ours to redistribute, and GitHub refuses any single file over 100 MB.
+afnan/.venv/
+afnan/Dataset_BUSI_with_GT/
+afnan/*.keras
+afnan/*.keras.gz
+
+# Aman's share folders DO go in - the recorded results are what let the GUI run
+# his two models on a fresh clone, and they are small enough to live in git.
+
+# The previous assignment, kept locally as a writing reference.  It is personal
+# work from another module and not part of this submission.
+previous assignment.docx
+~$evious assignment.docx
+
+# Word's lock files, created while a document is open.
+~$*
